@@ -56,6 +56,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
+const DAY_START_HOUR=10;
 const TYPES_DEFAULT=[
  {id:'daily',label:'日常'},
  {id:'maintenance',label:'维护'},
@@ -109,7 +110,11 @@ const DEFAULT_TASKS=[
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function uid(p){return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function today(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+function today(){
+ const d=new Date();
+ if(d.getHours()<DAY_START_HOUR)d.setDate(d.getDate()-1);
+ return new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
 function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function parseISO(s){const a=String(s).split('-').map(Number);return new Date(a[0],a[1]-1,a[2])}
 function addPeriod(d,n,u){
@@ -160,7 +165,7 @@ function render(){
 }
 function renderDashboard(c){
  const en=db.tasks.filter(t=>t.enabled),ov=en.filter(t=>status(t)==='overdue'),td=en.filter(t=>status(t)==='today'),up=en.filter(t=>status(t)==='upcoming').sort((a,b)=>a.nextDue.localeCompare(b.nextDue)).slice(0,8),night=en.filter(t=>t.unit==='nightly');
- c.innerHTML=`<div class="stats"><div class="stat"><b style="color:var(--danger)">${ov.length}</b><span>逾期</span></div><div class="stat"><b style="color:var(--warn)">${td.length}</b><span>今天到期</span></div><div class="stat"><b style="color:var(--ok)">${up.length}</b><span>近期任务</span></div><div class="stat"><b>${en.length}</b><span>启用任务</span></div></div><div class="panel">${sec('🔴 逾期',ov)}${sec('📌 今天',td)}${night.length?sec('🌙 今晚',night):''}${sec('🟠 即将到期',up)}</div>`
+ c.innerHTML=`<div class="notice" style="margin-bottom:14px">维护日每天上午 ${DAY_START_HOUR}:00 切换。凌晨 ${DAY_START_HOUR}:00 前完成的每日任务仍归入前一天。</div><div class="stats"><div class="stat"><b style="color:var(--danger)">${ov.length}</b><span>逾期</span></div><div class="stat"><b style="color:var(--warn)">${td.length}</b><span>今天到期</span></div><div class="stat"><b style="color:var(--ok)">${up.length}</b><span>近期任务</span></div><div class="stat"><b>${en.length}</b><span>启用任务</span></div></div><div class="panel">${sec('🔴 逾期',ov)}${sec('📌 今天',td)}${night.length?sec('🌙 今晚',night):''}${sec('🟠 即将到期',up)}</div>`
 }
 function sec(title,arr){return `<div class="section"><div class="section-title"><h2>${title}</h2></div>${arr.length?`<div class="task-list">${arr.map(card).join('')}</div>`:'<div class="empty">暂无任务</div>'}</div>`}
 function renderTasks(c){const q=(window.q||'').toLowerCase(),f=window.f||'all';let a=db.tasks.filter(t=>t.name.toLowerCase().includes(q)||subLabel(t.area,t.sub).toLowerCase().includes(q));if(f!=='all')a=a.filter(t=>t.type===f);c.innerHTML=`<div class="panel"><h2>📋 所有任务</h2><div class="toolbar"><input data-role="search" value="${esc(q)}" placeholder="搜索任务"><select data-role="filter"><option value="all">全部类型</option>${db.settings.types.map(x=>`<option value="${x.id}" ${f===x.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button type="button" class="btn primary" data-cmd="task-add">＋ 添加</button></div><div class="task-list">${a.map(card).join('')||'<div class="empty">没有找到任务</div>'}</div></div>`}
@@ -177,6 +182,7 @@ function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
  <div class="section"><div class="section-title"><h2>任务类型</h2><button type="button" class="btn primary small" data-settings="type-add">＋ 新增类型</button></div><div class="task-list">${db.settings.types.map(x=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(x.label)}</div><div class="meta">ID：${esc(x.id)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="type-edit" data-id="${x.id}">编辑</button><button type="button" class="btn danger small" data-settings="type-delete" data-id="${x.id}">删除</button></div></div></div>`).join('')}</div></div>
  <div class="section"><div class="section-title"><h2>区域</h2><button type="button" class="btn primary small" data-settings="area-add">＋ 新增区域</button></div><div class="task-list">${db.settings.areas.map(a=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(a.label)}</div><div class="meta">ID：${esc(a.id)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="area-edit" data-id="${a.id}">编辑区域</button><button type="button" class="btn danger small" data-settings="area-delete" data-id="${a.id}">删除区域</button></div></div><div class="actions"><button type="button" class="btn small" data-settings="sub-add" data-area="${a.id}">＋ 新增子区域</button></div>${(a.subs||[]).map(s=>`<div class="sub-row"><span>${esc(s.label)}</span><span class="actions" style="margin:0"><button type="button" class="btn small" data-settings="sub-edit" data-area="${a.id}" data-id="${s.id}">编辑</button><button type="button" class="btn danger small" data-settings="sub-delete" data-area="${a.id}" data-id="${s.id}">删除</button></span></div>`).join('')}</div>`).join('')}</div></div>
+ <div class="section"><h2>每日开始时间</h2><div class="notice">当前设置：每天 ${DAY_START_HOUR}:00 开始新的一天。该设置用于判断每日/周期任务属于哪一天；例如凌晨 5–6 点完成任务，仍计入前一天。</div></div>
  <div class="section"><h2>数据</h2><div class="actions"><button type="button" class="btn primary" data-cmd="export">💾 导出 JSON</button><button type="button" class="btn" data-cmd="import">📥 导入 JSON</button><input id="fileInput" type="file" accept=".json" hidden><button type="button" class="btn danger" data-cmd="reset">恢复初始数据</button></div><div class="notice" style="margin-top:10px">分类管理完全独立于任务管理。修改名称不会改变已有任务的内部 ID；删除被使用的分类时，相关任务会自动移动到其他可用分类。</div></div>
  </div>`
 }
