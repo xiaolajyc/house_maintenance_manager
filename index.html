@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>House Maintenance Manager V4</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+.app{max-width:1120px;margin:auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+h1{font-size:23px;margin:0}.subtitle{color:var(--muted);font-size:13px;margin-top:5px}
+.nav{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}.nav button,.btn{border:1px solid var(--line);background:#fff;color:var(--text);border-radius:10px;padding:9px 12px}.nav button.active,.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}.btn.danger{background:#fee2e2;border-color:#fecaca;color:#991b1b}.btn.small{font-size:12px;padding:7px 9px}
+.panel{background:var(--card);border-radius:15px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}.panel h2{font-size:17px;margin:0 0 12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.stat{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--shadow)}.stat b{display:block;font-size:26px}.stat span{font-size:12px;color:var(--muted)}
+.section{margin-bottom:20px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}
+.task-list{display:grid;gap:9px}.task{border:1px solid var(--line);border-radius:13px;padding:12px}.task-main{display:flex;justify-content:space-between;gap:12px}.task-name{font-weight:700}.meta{font-size:12px;color:var(--muted);margin-top:4px}
+.badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.badge{font-size:11px;padding:4px 7px;border-radius:999px;background:#eef2ff;color:#334155}.badge.red{background:#fee2e2;color:#991b1b}.badge.orange{background:#ffedd5;color:#9a3412}.badge.green{background:#dcfce7;color:#166534}.badge.gray{background:#f3f4f6;color:#4b5563}
+.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}.toolbar input,.toolbar select{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}.toolbar input{width:min(360px,100%)}
+.form{display:grid;gap:11px}.form label{display:grid;gap:5px;font-size:12px;color:var(--muted)}.form input,.form select,.form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text)}.form textarea{min-height:90px;resize:vertical}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.notice{background:#f8fafc;border:1px solid var(--line);padding:11px;border-radius:10px;font-size:13px;color:var(--muted)}.sub-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eef0f3}.sub-row:last-child{border-bottom:0}
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.46);align-items:center;justify-content:center;padding:16px;z-index:100}.modal.show{display:flex}.modal-box{background:#fff;width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:16px;padding:18px}.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.modal-head h3{margin:0;font-size:18px}.close{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;border-radius:10px;padding:10px 14px;display:none;z-index:200}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+@media(max-width:720px){.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.task-main{flex-direction:column}.app{padding:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div><h1>🏠 House Maintenance Manager</h1><div class="subtitle">家庭日常任务 · 房屋维护 · 分类管理</div></div>
+  <button type="button" class="btn primary" data-cmd="task-add">＋ 添加任务</button>
+</header>
+
+<nav class="nav" id="nav">
+ <button type="button" class="active" data-page="dashboard">🏠 首页</button>
+ <button type="button" data-page="tasks">📋 任务</button>
+ <button type="button" data-page="maintenance">🔧 房屋维护</button>
+ <button type="button" data-page="calendar">📅 日历</button>
+ <button type="button" data-page="history">📊 历史</button>
+ <button type="button" data-page="settings">⚙️ 设置</button>
+</nav>
+
+<main id="content"></main>
+<footer>数据保存在当前浏览器。建议定期导出 JSON 备份。</footer>
+</div>
+
+<div class="modal" id="modal">
+ <div class="modal-box">
+  <div class="modal-head"><h3 id="modalTitle"></h3><button type="button" class="close" data-cmd="modal-close">关闭</button></div>
+  <div id="modalBody"></div>
+ </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const KEY='houseMaintenanceManager_v4_clean';
+const TYPES_DEFAULT=[
+ {id:'daily',label:'日常'},
+ {id:'maintenance',label:'维护'},
+ {id:'inspection',label:'检查'},
+ {id:'consumable',label:'消耗品'}
+];
+const AREAS_DEFAULT=[
+ {id:'indoor',label:'室内',subs:[
+  {id:'kitchen',label:'厨房'},{id:'bathroom',label:'浴室'},{id:'toilet',label:'厕所'},{id:'bedroom',label:'卧室'},{id:'laundry',label:'洗衣房'}
+ ]},
+ {id:'outdoor',label:'室外',subs:[
+  {id:'garden',label:'花园'},{id:'house',label:'房子'}
+ ]},
+ {id:'other',label:'其他',subs:[{id:'other',label:'其他'}]}
+];
+const CL={
+ '厨房清洁':['清洁台面','清洁水槽','清洁灶台','擦拭橱柜外部','清洁厨房地面','清理明显油污','清理厨房垃圾'],
+ '厨房干货检查':['检查食品是否过期','检查包装是否破损','检查虫害迹象','检查是否受潮','清理需丢弃食品'],
+ '厨房地砖/拉丝地板深度清洁':['清扫','吸尘','深度拖地','清理边角','清理可达区域','检查明显污渍'],
+ '咖啡机、冰格清理':['清空咖啡渣','清洁咖啡机','清洁水箱/滴水盘','清空冰格','清洗冰格','擦干'],
+ '冰箱清洁':['清理过期食品','清洁冷藏室','清洁抽屉','清洁门架','擦拭密封条','清理异常积水','清洁外部'],
+ '烤箱清洁':['拆下烤架','清洁烤架','清洁烤箱内部','清理底部残渣','清洁玻璃门','擦拭外部'],
+ '冰柜除冰':['清空冰柜','安全除冰','清除积冰','清洁内部','擦干','重新整理食品','检查食品状态'],
+ '微波炉、空气炸锅清洁':['清洁微波炉内部','清洁微波炉转盘','清洁微波炉门','清理空气炸锅残渣','清洁炸篮和内胆','擦拭外部'],
+ '浴室清洁':['清洁洗手盆','清洁水龙头','清洁镜子','清洁淋浴区域','清洁浴缸（如有）','清洁玻璃','清理地漏','清洁地面'],
+ '浴室瓷砖/地砖':['深度清洁墙面瓷砖','清洁地砖','清洁 grout','清除明显水垢','检查 grout','检查霉菌'],
+ '刷马桶':['清洁马桶内部','清洁马桶边缘','清洁座圈','清洁盖板','擦拭外部','清洁周围区域'],
+ '厕所清洁':['清洁马桶','清洁洗手盆','清洁镜子','擦拭高频接触表面','清洁地面','清理垃圾桶'],
+ '厕所地砖':['清扫','深度拖地','清理角落','清洁 grout','检查积水/渗水'],
+ '打扫卫生':['整理杂物','除尘','清洁床周区域','清洁家具表面','吸尘','拖地'],
+ '洗衣房清洁':['清洁洗衣机外部','清洁水槽','清洁台面','清理棉絮/灰尘','清洁地面','检查明显漏水'],
+ '洗衣房地砖':['清扫','深度拖地','清理角落','清洁 grout','检查积水'],
+ '洗碗机、洗衣机清洁':['清洁洗碗机滤网','清洁喷淋臂','清洁洗碗机内部','清洁洗衣机 drum','清洁洗涤剂盒','清洁门封','检查异味/漏水'],
+ '除草':['前院','后院','侧院/其他区域'],'施肥':['前院','后院','侧院/其他区域'],
+ '老鼠药检查/补充':['检查 bait station','检查 bait 是否足够','必要时补充/更换','检查鼠害迹象'],
+ '清理 Gutter':['检查 gutter','清除树叶和泥沙','清理落水口','检查 downpipe','检查堵塞','检查锈蚀/变形/松动','检查排水'],
+ '清理屋顶':['清理杂物','清除树叶','清理 moss/algae（如有）','检查瓦片','检查 ridge/capping','检查明显损坏','检查 flashing','检查 gutter/downpipe'],
+ '白蚁检查':['检查室内迹象','检查室外墙边','检查木结构周围','检查潮湿区域','检查 termite entry points','检查 bait/station（如有）'],
+ '清理蜘蛛网':['Front entrance','Eaves','Windows','Garage','Backyard','Outdoor lights'],
+ '擦玻璃':['室内玻璃','室外玻璃','窗框','窗台','检查明显损坏'],
+ '汽车清洁':['冲洗车身','清洁轮圈','清洁车窗','吸尘','清洁仪表台','清理垃圾','清洁玻璃']
+};
+const DEFAULT_TASKS=[
+ ['厨房清洁','daily','indoor','kitchen',1,'month'],['厨房干货检查','inspection','indoor','kitchen',1,'month'],['厨房地砖/拉丝地板深度清洁','maintenance','indoor','kitchen',2,'month'],['咖啡机、冰格清理','maintenance','indoor','kitchen',3,'month'],['冰箱清洁','maintenance','indoor','kitchen',1,'month'],['烤箱清洁','maintenance','indoor','kitchen',6,'month'],['冰柜除冰','maintenance','indoor','kitchen',6,'month'],['微波炉、空气炸锅清洁','maintenance','indoor','kitchen',1,'month'],
+ ['浴室清洁','daily','indoor','bathroom',15,'day'],['浴室瓷砖/地砖','maintenance','indoor','bathroom',2,'month'],['刷马桶','daily','indoor','toilet',15,'day'],['厕所清洁','daily','indoor','toilet',15,'day'],['厕所地砖','maintenance','indoor','toilet',2,'month'],['打扫卫生','daily','indoor','bedroom',1,'month'],
+ ['洗衣房清洁','daily','indoor','laundry',1,'month'],['洗衣房地砖','maintenance','indoor','laundry',2,'month'],['洗碗机、洗衣机清洁','maintenance','indoor','laundry',1,'year'],
+ ['除草','maintenance','outdoor','garden',3,'month'],['施肥','maintenance','outdoor','garden',1,'month'],['堆肥测量温度','inspection','outdoor','garden',1,'nightly'],['推垃圾桶','daily','outdoor','garden',1,'week'],['老鼠药检查/补充','consumable','outdoor','garden',1,'month'],
+ ['清理 Gutter','maintenance','outdoor','house',2,'month'],['清理屋顶','maintenance','outdoor','house',1,'year'],['白蚁检查','inspection','outdoor','house',1,'year'],['清理蜘蛛网','maintenance','outdoor','house',1,'month'],['擦玻璃','maintenance','outdoor','house',3,'month'],['汽车清洁','maintenance','other','other',3,'month']
+];
+
+function clone(v){return JSON.parse(JSON.stringify(v))}
+function uid(p){return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function today(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function parseISO(s){const a=String(s).split('-').map(Number);return new Date(a[0],a[1]-1,a[2])}
+function addPeriod(d,n,u){
+ const x=new Date(d);
+ if(u==='nightly'||u==='day')x.setDate(x.getDate()+n);
+ else if(u==='week')x.setDate(x.getDate()+7*n);
+ else if(u==='month'){const day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()))}
+ else if(u==='year'){const m=x.getMonth(),day=x.getDate();x.setDate(1);x.setFullYear(x.getFullYear()+n);x.setMonth(m);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()))}
+ return x
+}
+function diff(a,b){return Math.round((parseISO(a)-parseISO(b))/86400000)}
+function typeLabel(id){return db.settings.types.find(x=>x.id===id)?.label||id}
+function areaLabel(id){return db.settings.areas.find(x=>x.id===id)?.label||id}
+function subLabel(a,s){return db.settings.areas.find(x=>x.id===a)?.subs?.find(x=>x.id===s)?.label||s}
+function freq(t){if(t.unit==='nightly')return '每晚';if(t.unit==='day')return t.interval===1?'每天':`每${t.interval}天`;if(t.unit==='week')return t.interval===1?'每周':`每${t.interval}周`;if(t.unit==='month')return t.interval===1?'每月':`每${t.interval}个月`;return t.interval===1?'每年':`每${t.interval}年`}
+function status(t){if(!t.enabled)return 'disabled';const d=diff(t.nextDue,iso(today()));return d<0?'overdue':d===0?'today':'upcoming'}
+function statusHTML(t){const s=status(t);if(s==='overdue')return `<span class="badge red">逾期 ${Math.abs(diff(t.nextDue,iso(today())))} 天</span>`;if(s==='today')return `<span class="badge orange">今天到期</span>`;if(s==='upcoming')return `<span class="badge green">${diff(t.nextDue,iso(today()))} 天后</span>`;return `<span class="badge gray">已停用</span>`}
+
+function defaultDB(){
+ const tasks=DEFAULT_TASKS.map(([name,type,area,sub,interval,unit])=>({id:uid('task'),name,type,area,sub,interval,unit,lastCompleted:null,nextDue:unit==='nightly'?iso(today()):iso(addPeriod(today(),1,unit)),reminder:unit==='year'?30:unit==='month'?7:unit==='week'?1:0,enabled:true,notes:'',checklist:(CL[name]||[]).map(text=>({text,done:false})),history:[]}));
+ return {tasks,settings:{types:clone(TYPES_DEFAULT),areas:clone(AREAS_DEFAULT)}}
+}
+function normalize(x){
+ if(!x||!Array.isArray(x.tasks))x=defaultDB();
+ if(!x.settings)x.settings={};
+ if(!Array.isArray(x.settings.types)||!x.settings.types.length)x.settings.types=clone(TYPES_DEFAULT);
+ if(!Array.isArray(x.settings.areas)||!x.settings.areas.length)x.settings.areas=clone(AREAS_DEFAULT);
+ x.settings.areas.forEach(a=>{if(!Array.isArray(a.subs))a.subs=[]});
+ x.tasks.forEach(t=>{if(!Array.isArray(t.checklist))t.checklist=[];if(!Array.isArray(t.history))t.history=[];if(typeof t.enabled!=='boolean')t.enabled=true});
+ return x
+}
+function load(){try{return normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(e){return defaultDB()}}
+let db=load();
+localStorage.setItem(KEY,JSON.stringify(db));
+let page='dashboard';
+
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x.style.display='block';clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>x.style.display='none',1600)}
+function modal(title,body){document.getElementById('modalTitle').textContent=title;document.getElementById('modalBody').innerHTML=body;document.getElementById('modal').classList.add('show')}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+
+function card(t){return `<div class="task"><div class="task-main"><div><div class="task-name">${esc(t.name)}</div><div class="meta">${esc(areaLabel(t.area))} · ${esc(subLabel(t.area,t.sub))} · ${esc(typeLabel(t.type))} · ${freq(t)}</div><div class="badges">${statusHTML(t)}<span class="badge">到期 ${esc(t.nextDue)}</span></div></div></div><div class="actions"><button type="button" class="btn primary small" data-cmd="task-complete" data-id="${t.id}">✅ 完成</button>${t.unit==='nightly'?'':`<button type="button" class="btn small" data-cmd="task-snooze" data-id="${t.id}">⏭ 延期</button>`}<button type="button" class="btn small" data-cmd="task-edit" data-id="${t.id}">编辑</button><button type="button" class="btn danger small" data-cmd="task-delete" data-id="${t.id}">删除</button></div></div>`}
+
+function render(){
+ document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+ const c=document.getElementById('content');
+ if(page==='dashboard')renderDashboard(c);else if(page==='tasks')renderTasks(c);else if(page==='maintenance')renderMaintenance(c);else if(page==='calendar')renderCalendar(c);else if(page==='history')renderHistory(c);else renderSettings(c);
+}
+function renderDashboard(c){
+ const en=db.tasks.filter(t=>t.enabled),ov=en.filter(t=>status(t)==='overdue'),td=en.filter(t=>status(t)==='today'),up=en.filter(t=>status(t)==='upcoming').sort((a,b)=>a.nextDue.localeCompare(b.nextDue)).slice(0,8),night=en.filter(t=>t.unit==='nightly');
+ c.innerHTML=`<div class="stats"><div class="stat"><b style="color:var(--danger)">${ov.length}</b><span>逾期</span></div><div class="stat"><b style="color:var(--warn)">${td.length}</b><span>今天到期</span></div><div class="stat"><b style="color:var(--ok)">${up.length}</b><span>近期任务</span></div><div class="stat"><b>${en.length}</b><span>启用任务</span></div></div><div class="panel">${sec('🔴 逾期',ov)}${sec('📌 今天',td)}${night.length?sec('🌙 今晚',night):''}${sec('🟠 即将到期',up)}</div>`
+}
+function sec(title,arr){return `<div class="section"><div class="section-title"><h2>${title}</h2></div>${arr.length?`<div class="task-list">${arr.map(card).join('')}</div>`:'<div class="empty">暂无任务</div>'}</div>`}
+function renderTasks(c){const q=(window.q||'').toLowerCase(),f=window.f||'all';let a=db.tasks.filter(t=>t.name.toLowerCase().includes(q)||subLabel(t.area,t.sub).toLowerCase().includes(q));if(f!=='all')a=a.filter(t=>t.type===f);c.innerHTML=`<div class="panel"><h2>📋 所有任务</h2><div class="toolbar"><input data-role="search" value="${esc(q)}" placeholder="搜索任务"><select data-role="filter"><option value="all">全部类型</option>${db.settings.types.map(x=>`<option value="${x.id}" ${f===x.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button type="button" class="btn primary" data-cmd="task-add">＋ 添加</button></div><div class="task-list">${a.map(card).join('')||'<div class="empty">没有找到任务</div>'}</div></div>`}
+function renderMaintenance(c){c.innerHTML=`<div class="panel"><h2>🔧 房屋维护</h2><div class="task-list">${db.tasks.filter(t=>t.enabled&&t.type==='maintenance').map(card).join('')||'<div class="empty">暂无维护任务</div>'}</div></div>`}
+function renderCalendar(c){
+ const d=today(),y=d.getFullYear(),m=d.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);let days=[];for(let i=0;i<first.getDay();i++)days.push(null);for(let i=1;i<=last.getDate();i++)days.push(i);let rows='';
+ for(let i=0;i<Math.ceil(days.length/7);i++){const row=days.slice(i*7,i*7+7);rows+='<tr>'+row.map(n=>{if(!n)return '<td style="height:72px"></td>';const ls=db.tasks.filter(t=>t.enabled&&parseISO(t.nextDue).getFullYear()===y&&parseISO(t.nextDue).getMonth()===m&&parseISO(t.nextDue).getDate()===n).slice(0,4);return `<td style="height:72px;padding:7px;border:1px solid var(--line);vertical-align:top"><b>${n}</b>${ls.map(t=>`<div style="font-size:11px;margin-top:4px">• ${esc(t.name)}</div>`).join('')}</td>`}).join('')+'</tr>'}
+ c.innerHTML=`<div class="panel"><h2>📅 ${y}年${m+1}月</h2><table style="width:100%;border-collapse:collapse"><thead><tr>${['日','一','二','三','四','五','六'].map(x=>`<th style="padding:7px;border-bottom:1px solid var(--line)">${x}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`
+}
+function renderHistory(c){
+ const a=[];db.tasks.forEach(t=>(t.history||[]).forEach(h=>a.push({task:t.name,...h})));a.sort((x,y)=>y.date.localeCompare(x.date));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2>${a.length?`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">备注</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td style="padding:8px;border-bottom:1px solid var(--line)">${esc(h.date)}</td><td style="padding:8px;border-bottom:1px solid var(--line)">${esc(h.task)}</td><td style="padding:8px;border-bottom:1px solid var(--line)">${esc(h.condition||'Normal')}</td><td style="padding:8px;border-bottom:1px solid var(--line)">$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)">${esc(h.notes||'')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div>`
+}
+function renderSettings(c){
+ c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
+ <div class="section"><div class="section-title"><h2>任务类型</h2><button type="button" class="btn primary small" data-settings="type-add">＋ 新增类型</button></div><div class="task-list">${db.settings.types.map(x=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(x.label)}</div><div class="meta">ID：${esc(x.id)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="type-edit" data-id="${x.id}">编辑</button><button type="button" class="btn danger small" data-settings="type-delete" data-id="${x.id}">删除</button></div></div></div>`).join('')}</div></div>
+ <div class="section"><div class="section-title"><h2>区域</h2><button type="button" class="btn primary small" data-settings="area-add">＋ 新增区域</button></div><div class="task-list">${db.settings.areas.map(a=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(a.label)}</div><div class="meta">ID：${esc(a.id)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="area-edit" data-id="${a.id}">编辑区域</button><button type="button" class="btn danger small" data-settings="area-delete" data-id="${a.id}">删除区域</button></div></div><div class="actions"><button type="button" class="btn small" data-settings="sub-add" data-area="${a.id}">＋ 新增子区域</button></div>${(a.subs||[]).map(s=>`<div class="sub-row"><span>${esc(s.label)}</span><span class="actions" style="margin:0"><button type="button" class="btn small" data-settings="sub-edit" data-area="${a.id}" data-id="${s.id}">编辑</button><button type="button" class="btn danger small" data-settings="sub-delete" data-area="${a.id}" data-id="${s.id}">删除</button></span></div>`).join('')}</div>`).join('')}</div></div>
+ <div class="section"><h2>数据</h2><div class="actions"><button type="button" class="btn primary" data-cmd="export">💾 导出 JSON</button><button type="button" class="btn" data-cmd="import">📥 导入 JSON</button><input id="fileInput" type="file" accept=".json" hidden><button type="button" class="btn danger" data-cmd="reset">恢复初始数据</button></div><div class="notice" style="margin-top:10px">分类管理完全独立于任务管理。修改名称不会改变已有任务的内部 ID；删除被使用的分类时，相关任务会自动移动到其他可用分类。</div></div>
+ </div>`
+}
+function taskEditor(id){
+ const t=id?db.tasks.find(x=>x.id===id):null;
+ const a=db.settings.areas[0];
+ const v=t||{name:'',type:db.settings.types[0].id,area:a.id,sub:a.subs[0]?.id||'',interval:1,unit:'month',nextDue:iso(today()),reminder:7,notes:'',checklist:[]};
+ modal(t?'编辑任务':'添加任务',`<form id="taskForm" class="form"><input type="hidden" name="id" value="${t?esc(t.id):''}"><label>任务名称<input required name="name" value="${esc(v.name)}"></label><div class="grid2"><label>类型<select name="type">${db.settings.types.map(x=>`<option value="${x.id}" ${x.id===v.type?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label><label>区域<select name="area" id="taskArea">${db.settings.areas.map(x=>`<option value="${x.id}" ${x.id===v.area?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><label>子区域<select name="sub" id="taskSub">${subOpts(v.area,v.sub)}</select></label><div class="grid2"><label>周期数量<input required type="number" min="1" step="1" name="interval" value="${v.interval}"></label><label>周期单位<select name="unit"><option value="day" ${v.unit==='day'?'selected':''}>天</option><option value="week" ${v.unit==='week'?'selected':''}>周</option><option value="month" ${v.unit==='month'?'selected':''}>月</option><option value="year" ${v.unit==='year'?'selected':''}>年</option><option value="nightly" ${v.unit==='nightly'?'selected':''}>每晚</option></select></label></div><div class="grid2"><label>下次到期<input required type="date" name="nextDue" value="${esc(v.nextDue)}"></label><label>提前提醒（天）<input type="number" min="0" step="1" name="reminder" value="${v.reminder||0}"></label></div><label>备注<textarea name="notes">${esc(v.notes||'')}</textarea></label><label>Checklist（每行一项）<textarea name="checklist">${esc((v.checklist||[]).map(x=>x.text||x).join('\\n'))}</textarea></label><div class="actions"><button type="button" class="btn primary" data-cmd="task-save">保存</button>${t?`<button type="button" class="btn danger" data-cmd="task-delete" data-id="${esc(t.id)}">删除任务</button>`:''}</div></form>`)
+}
+function subOpts(area,sel){const a=db.settings.areas.find(x=>x.id===area);return(a?.subs||[]).map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.label)}</option>`).join('')}
+function saveTask(){
+ const f=new FormData(document.getElementById('taskForm')),id=f.get('id');let t=id?db.tasks.find(x=>x.id===id):null;
+ if(!t){t={id:uid('task'),lastCompleted:null,history:[],enabled:true};db.tasks.push(t)}
+ t.name=String(f.get('name')||'').trim();t.type=f.get('type');t.area=f.get('area');t.sub=f.get('sub');t.interval=Math.max(1,parseInt(f.get('interval'))||1);t.unit=f.get('unit');t.nextDue=f.get('nextDue')||iso(today());t.reminder=Math.max(0,parseInt(f.get('reminder'))||0);t.notes=f.get('notes')||'';t.checklist=String(f.get('checklist')||'').split('\\n').map(x=>x.trim()).filter(Boolean).map(text=>({text,done:false}));save();closeModal();render();toast('任务已保存')
+}
+function completeModal(id){
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;modal(`完成：${t.name}`,`<form id="completeForm" class="form">${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div>${t.checklist.map((x,i)=>`<label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--text)"><input type="checkbox" name="c${i}"> ${esc(x.text)}</label>`).join('')}</div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>备注<textarea name="notes"></textarea></label></div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
+}
+function saveComplete(id){
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');t.lastCompleted=date;t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));t.history.unshift({id:uid('hist'),date,condition:f.get('condition'),cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))});save();closeModal();render();toast('完成记录已保存')
+}
+function deleteTaskConfirm(id){const t=db.tasks.find(x=>x.id===id);if(!t)return;modal('确认删除任务',`<div class="notice">确定删除 <strong>${esc(t.name)}</strong> 吗？<br>该任务的历史记录也会删除。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-cmd="task-delete-confirm" data-id="${esc(id)}">确定删除</button></div>`)}
+function snoozeModal(id){modal('延期任务',`<form class="form" id="snoozeForm"><label>延后天数<input required type="number" min="1" step="1" name="days" value="7"></label><div class="actions"><button type="button" class="btn primary" data-cmd="snooze-save" data-id="${esc(id)}">保存延期</button></div></form>`)}
+function saveSnooze(id){const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('snoozeForm')),n=Math.max(1,parseInt(f.get('days'))||1);t.nextDue=iso(addPeriod(parseISO(t.nextDue),n,'day'));save();closeModal();render();toast('任务已延期')}
+
+function typeEditor(id){const x=id?db.settings.types.find(v=>v.id===id):null;modal(x?'编辑任务类型':'新增任务类型',`<form id="typeForm" class="form"><input type="hidden" name="id" value="${x?esc(x.id):''}"><label>类型名称<input required name="label" value="${x?esc(x.label):''}"></label><div class="actions"><button type="button" class="btn primary" data-settings="type-save">保存</button></div></form>`)}
+function typeDelete(id){const x=db.settings.types.find(v=>v.id===id);if(!x)return;if(db.settings.types.length<=1){toast('至少保留一个任务类型');return}modal('删除任务类型',`<div class="notice">删除“${esc(x.label)}”后，使用它的任务会自动移动到其他类型。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-settings="type-delete-confirm" data-id="${esc(id)}">确定删除</button></div>`)}
+function typeSave(){const f=new FormData(document.getElementById('typeForm')),id=f.get('id'),label=String(f.get('label')||'').trim();if(!label)return;const x=id?db.settings.types.find(v=>v.id===id):null;if(x)x.label=label;else db.settings.types.push({id:uid('type'),label});save();closeModal();render();toast('类型已保存')}
+function typeDeleteConfirm(id){const remain=db.settings.types.filter(v=>v.id!==id),fallback=remain[0].id;db.tasks.forEach(t=>{if(t.type===id)t.type=fallback});db.settings.types=remain;save();closeModal();render();toast('类型已删除')}
+
+function areaEditor(id){const x=id?db.settings.areas.find(v=>v.id===id):null;modal(x?'编辑区域':'新增区域',`<form id="areaForm" class="form"><input type="hidden" name="id" value="${x?esc(x.id):''}"><label>区域名称<input required name="label" value="${x?esc(x.label):''}"></label><div class="actions"><button type="button" class="btn primary" data-settings="area-save">保存</button></div></form>`)}
+function areaDelete(id){const x=db.settings.areas.find(v=>v.id===id);if(!x)return;if(db.settings.areas.length<=1){toast('至少保留一个区域');return}modal('删除区域',`<div class="notice">删除“${esc(x.label)}”后，相关任务会自动移动到其他区域。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-settings="area-delete-confirm" data-id="${esc(id)}">确定删除</button></div>`)}
+function areaSave(){const f=new FormData(document.getElementById('areaForm')),id=f.get('id'),label=String(f.get('label')||'').trim();if(!label)return;const x=id?db.settings.areas.find(v=>v.id===id):null;if(x)x.label=label;else db.settings.areas.push({id:uid('area'),label,subs:[]});save();closeModal();render();toast('区域已保存')}
+function areaDeleteConfirm(id){const remain=db.settings.areas.filter(v=>v.id!==id),fallback=remain[0];db.tasks.forEach(t=>{if(t.area===id){t.area=fallback.id;t.sub=fallback.subs[0]?.id||''}});db.settings.areas=remain;save();closeModal();render();toast('区域已删除')}
+
+function subEditor(areaId,subId){const a=db.settings.areas.find(v=>v.id===areaId),x=a?.subs?.find(v=>v.id===subId);if(!a)return;modal(x?'编辑子区域':'新增子区域',`<form id="subForm" class="form"><input type="hidden" name="area" value="${esc(areaId)}"><input type="hidden" name="id" value="${x?esc(x.id):''}"><label>子区域名称<input required name="label" value="${x?esc(x.label):''}"></label><div class="actions"><button type="button" class="btn primary" data-settings="sub-save">保存</button></div></form>`)}
+function subDelete(areaId,subId){const a=db.settings.areas.find(v=>v.id===areaId),x=a?.subs?.find(v=>v.id===subId);if(!a||!x)return;if(a.subs.length<=1){toast('至少保留一个子区域');return}modal('删除子区域',`<div class="notice">删除“${esc(x.label)}”后，使用它的任务会自动移动到该区域的其他子区域。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-settings="sub-delete-confirm" data-area="${esc(areaId)}" data-id="${esc(subId)}">确定删除</button></div>`)}
+function subSave(){const f=new FormData(document.getElementById('subForm')),area=f.get('area'),id=f.get('id'),label=String(f.get('label')||'').trim();if(!label)return;const a=db.settings.areas.find(v=>v.id===area);if(!a)return;const x=id?a.subs.find(v=>v.id===id):null;if(x)x.label=label;else a.subs.push({id:uid('sub'),label});save();closeModal();render();toast('子区域已保存')}
+function subDeleteConfirm(area,id){const a=db.settings.areas.find(v=>v.id===area);if(!a)return;const remain=a.subs.filter(v=>v.id!==id),fallback=remain[0]?.id;db.tasks.forEach(t=>{if(t.area===area&&t.sub===id)t.sub=fallback});a.subs=remain;save();closeModal();render();toast('子区域已删除')}
+
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`house-maintenance-v4-${iso(today())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function resetData(){db=defaultDB();save();closeModal();render();toast('已恢复初始数据')}
+function importData(file){const r=new FileReader();r.onload=()=>{try{db=normalize(JSON.parse(r.result));save();render();toast('导入成功')}catch(e){alert('导入失败：不是有效的备份文件')}};r.readAsText(file)}
+
+document.addEventListener('click',function(e){
+ const nav=e.target.closest('[data-page]');
+ if(nav){page=nav.dataset.page;render();return}
+ const s=e.target.closest('[data-settings]');
+ if(s){
+  const a=s.dataset.settings,id=s.dataset.id,area=s.dataset.area;
+  if(a==='type-add')typeEditor();else if(a==='type-edit')typeEditor(id);else if(a==='type-delete')typeDelete(id);else if(a==='type-save')typeSave();else if(a==='type-delete-confirm')typeDeleteConfirm(id);
+  else if(a==='area-add')areaEditor();else if(a==='area-edit')areaEditor(id);else if(a==='area-delete')areaDelete(id);else if(a==='area-save')areaSave();else if(a==='area-delete-confirm')areaDeleteConfirm(id);
+  else if(a==='sub-add')subEditor(area);else if(a==='sub-edit')subEditor(area,id);else if(a==='sub-delete')subDelete(area,id);else if(a==='sub-save')subSave();else if(a==='sub-delete-confirm')subDeleteConfirm(area,id);
+  return
+ }
+ const c=e.target.closest('[data-cmd]');
+ if(c){
+  const a=c.dataset.cmd,id=c.dataset.id;
+  if(a==='task-add')taskEditor();else if(a==='task-edit')taskEditor(id);else if(a==='task-complete')completeModal(id);else if(a==='task-delete')deleteTaskConfirm(id);else if(a==='task-delete-confirm'){db.tasks=db.tasks.filter(t=>t.id!==id);save();closeModal();render();toast('任务已删除')}
+  else if(a==='task-snooze')snoozeModal(id);else if(a==='snooze-save')saveSnooze(id);else if(a==='task-save')saveTask();else if(a==='complete-save')saveComplete(id);else if(a==='modal-close')closeModal();else if(a==='export')exportData();else if(a==='import')document.getElementById('fileInput').click();else if(a==='reset'){if(confirm('确定恢复全部初始数据吗？当前任务、历史和分类都会被覆盖。'))resetData()}
+ }
+});
+document.addEventListener('input',e=>{if(e.target.dataset.role==='search'){window.q=e.target.value;render()}});
+document.addEventListener('change',e=>{
+ if(e.target.dataset.role==='filter'){window.f=e.target.value;render()}
+ if(e.target.id==='taskArea'){const sub=document.getElementById('taskSub');if(sub)sub.innerHTML=subOpts(e.target.value,'')}
+ if(e.target.id==='fileInput'&&e.target.files[0]){importData(e.target.files[0]);e.target.value=''}
+});
+render();
+</script>
+</body>
+</html>
