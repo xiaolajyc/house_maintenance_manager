@@ -42,6 +42,15 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .history-table td:nth-child(5)::before{content:"备注："}
 .history-table td:nth-child(6)::before{content:"操作："}
 .history-table .history-note{display:block;margin-top:4px}
+ .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}
+ .photo-card{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f8fafc}
+ .photo-card img{display:block;width:100%;height:110px;object-fit:cover;cursor:pointer}
+ .photo-card button{position:absolute;right:4px;top:4px}
+ .expense-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 14px}
+ .expense-stat{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+ .expense-stat b{display:block;font-size:21px;margin-top:3px};min-width:0
+ @media(max-width:720px){.expense-stats{grid-template-columns:1fr 1fr}.expense-stat:last-child{grid-column:1/-1}}
+
  .history-table td:nth-child(2){font-weight:700;font-size:15px}
  .history-table td:nth-child(2)::before,.history-table td:nth-child(5)::before{display:block;margin:0 0 3px}
 }
@@ -214,7 +223,7 @@ function renderHistory(c){
    if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
  });
  let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
- a.sort((x,y)=>y.date.localeCompare(x.date));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}</td><td><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ a.sort((x,y)=>y.date.localeCompare(x.date));const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${photoHTML(h.photos,true)}</td><td><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -236,11 +245,27 @@ function saveTask(){
  if(!t){t={id:uid('task'),lastCompleted:null,history:[],enabled:true};db.tasks.push(t)}
  t.name=String(f.get('name')||'').trim();t.type=f.get('type');t.area=f.get('area');t.sub=f.get('sub');t.interval=Math.max(1,parseInt(f.get('interval'))||1);t.unit=f.get('unit');t.nextDue=f.get('nextDue')||iso(today());t.reminder=Math.max(0,parseInt(f.get('reminder'))||0);t.notes=f.get('notes')||'';t.checklist=String(f.get('checklist')||'').split('\\n').map(x=>x.trim()).filter(Boolean).map(text=>({text,done:false}));save();closeModal();render();toast('任务已保存')
 }
+function compressPhoto(file){
+ return new Promise((resolve,reject)=>{
+  const r=new FileReader();r.onload=()=>{
+   const img=new Image();img.onload=()=>{
+    const max=1600,s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.max(1,Math.round(img.naturalWidth*s)),hh=Math.max(1,Math.round(img.naturalHeight*s));
+    const cv=document.createElement('canvas');cv.width=w;cv.height=hh;cv.getContext('2d').drawImage(img,0,0,w,hh);
+    cv.toBlob(b=>{if(!b)return reject();const rr=new FileReader();rr.onload=()=>resolve(rr.result);rr.onerror=reject;rr.readAsDataURL(b)},'image/jpeg',.82)
+   };img.onerror=reject;img.src=r.result
+  };r.onerror=reject;r.readAsDataURL(file)
+ })
+}
+function photoHTML(photos,historyMode){
+ const p=Array.isArray(photos)?photos:[];if(!p.length)return '';
+ return '<div class="photo-grid">'+p.map((x,i)=>`<div class="photo-card"><img src="${x.data}" alt="完成照片 ${i+1}" data-cmd="photo-view" data-src="${x.data}">${historyMode?'':`<button type="button" class="btn danger small" data-cmd="photo-delete" data-index="${i}">删除</button>`}</div>`).join('')+'</div>'
+}
 function completeModal(id){
- const t=db.tasks.find(x=>x.id===id);if(!t)return;modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;window.pendingPhotos=[];
+ modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><label>拍照记录<input id="completePhotos" type="file" accept="image/*" capture="environment" multiple><div class="meta">照片自动压缩为 JPEG，最长边约 1600px，质量约 82%，尽量节省存储空间并保持清晰度。</div><div id="photoPreview"></div></label><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
 }
 function saveComplete(id){
- const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');t.lastCompleted=date;t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));t.history.unshift({id:uid('hist'),date,condition:f.get('condition'),cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))});save();closeModal();render();toast('完成记录已保存')
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');t.lastCompleted=date;t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));t.history.unshift({id:uid('hist'),date,condition:f.get('condition'),cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',photos:Array.isArray(window.pendingPhotos)?window.pendingPhotos:[],checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))});save();closeModal();render();toast('完成记录已保存')
 }
 function deleteHistory(taskId,historyId,archived){
  if(!confirm('确定删除这条历史记录吗？'))return;
@@ -289,7 +314,9 @@ document.addEventListener('click',function(e){
  const c=e.target.closest('[data-cmd]');
  if(c){
   const a=c.dataset.cmd,id=c.dataset.id;
-  if(a==='task-add')taskEditor();else if(a==='task-edit')taskEditor(id);else if(a==='task-complete')completeModal(id);else if(a==='task-delete')deleteTaskConfirm(id);else if(a==='task-delete-confirm'){
+  if(a==='photo-view'){const src=c.dataset.src;if(src)modal('照片',`<img src="${src}" style="display:block;max-width:100%;max-height:75vh;margin:auto;border-radius:10px">`);return}
+   if(a==='photo-delete'){if(Array.isArray(window.pendingPhotos)){window.pendingPhotos.splice(Number(c.dataset.index),1);const p=document.getElementById('photoPreview');if(p)p.innerHTML=photoHTML(window.pendingPhotos,false)}return}
+   if(a==='task-add')taskEditor();else if(a==='task-edit')taskEditor(id);else if(a==='task-complete')completeModal(id);else if(a==='task-delete')deleteTaskConfirm(id);else if(a==='task-delete-confirm'){
  const t=db.tasks.find(x=>x.id===id);
  if(t){
   if(!Array.isArray(db.archivedHistory))db.archivedHistory=[];
@@ -303,7 +330,8 @@ document.addEventListener('click',function(e){
  }
 });
 document.addEventListener('input',e=>{if(e.target.dataset.role==='search'){window.q=e.target.value;render()}});
-document.addEventListener('change',e=>{
+document.addEventListener('change',e=>{if(e.target.id==='completePhotos'){const fs=Array.from(e.target.files||[]);Promise.all(fs.map(compressPhoto)).then(xs=>{window.pendingPhotos=(window.pendingPhotos||[]).concat(xs.map(data=>({data})));const p=document.getElementById('photoPreview');if(p)p.innerHTML=photoHTML(window.pendingPhotos,false)}).catch(()=>toast('照片处理失败'));e.target.value='';return}
+  
   if(e.target.dataset.role==='history-task'){window.historyTask=e.target.value;render();return}
  if(e.target.dataset.role==='filter'){window.f=e.target.value;render()}
  if(e.target.id==='taskArea'){const sub=document.getElementById('taskSub');if(sub)sub.innerHTML=subOpts(e.target.value,'')}
