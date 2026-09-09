@@ -27,7 +27,22 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .check-item{display:flex!important;align-items:flex-start;gap:8px;padding:9px 10px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;color:var(--text)!important;font-size:13px!important;line-height:1.35}
 .check-item input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0}
 .check-item span{min-width:0;overflow-wrap:anywhere}.history-wrap{overflow-x:auto}.history-table{width:100%;border-collapse:collapse}.history-table th,.history-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.history-detail{min-width:260px;white-space:normal;line-height:1.55}.history-note{min-width:180px;white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:720px){.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.task-main{flex-direction:column}.app{padding:12px}}
+@media(max-width:720px){
+.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.task-main{flex-direction:column}.app{padding:12px}
+.history-table{display:block!important}
+.history-table thead{display:none}
+.history-table tbody,.history-table tr,.history-table td{display:block;width:100%!important}
+.history-table tr{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}
+.history-table td{padding:7px 8px!important;border:0!important;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word}
+.history-table td::before{display:inline-block;font-weight:700;color:var(--muted);margin-right:6px}
+.history-table td:nth-child(1)::before{content:"日期："}
+.history-table td:nth-child(2)::before{content:"任务："}
+.history-table td:nth-child(3)::before{content:"状态："}
+.history-table td:nth-child(4)::before{content:"花费："}
+.history-table td:nth-child(5)::before{content:"备注："}
+.history-table td:nth-child(6)::before{content:"操作："}
+.history-table .history-note{display:block;margin-top:4px}
+}
 @media(max-width:390px){.checklist-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -216,7 +231,7 @@ function completeModal(id){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
 }
 function saveComplete(id){
- const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');t.notes=f.get('taskNotes')||t.notes||'';t.lastCompleted=date;t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));t.history.unshift({id:uid('hist'),date,condition:f.get('condition'),cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))});save();closeModal();render();toast('完成记录已保存')
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');t.lastCompleted=date;t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));t.history.unshift({id:uid('hist'),date,condition:f.get('condition'),cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))});save();closeModal();render();toast('完成记录已保存')
 }
 function deleteHistory(taskId,historyId,archived){
  if(!confirm('确定删除这条历史记录吗？'))return;
