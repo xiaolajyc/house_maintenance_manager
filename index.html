@@ -42,6 +42,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .history-table td:nth-child(5)::before{content:"备注："}
 .history-table td:nth-child(6)::before{content:"操作："}
 .history-table .history-note{display:block;margin-top:4px}
+ .history-table td:nth-child(2){font-weight:700;font-size:15px}
+ .history-table td:nth-child(2)::before,.history-table td:nth-child(5)::before{display:block;margin:0 0 3px}
 }
 @media(max-width:390px){.checklist-grid{grid-template-columns:1fr}}
 </style>
@@ -202,10 +204,17 @@ function checklistSummary(h){
  return '<div style=\"margin-top:6px;font-size:12px\"><strong>小项：'+done+'/'+r.length+'</strong><div style=\"margin-top:4px\">'+r.map(x=>(x.done?'☑️ ':'☐ ')+esc(x.text)).join('<br>')+'</div></div>';
 }
 function renderHistory(c){
- const a=[];
- db.tasks.forEach(t=>(t.history||[]).forEach(h=>a.push({task:t.name,taskId:t.id,...h,archived:false})));
- (db.archivedHistory||[]).forEach(h=>a.push({task:h.task||'已删除任务',taskId:null,...h,archived:true}));
- a.sort((x,y)=>y.date.localeCompare(x.date));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}</td><td><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ const all=[];
+ db.tasks.forEach(t=>(t.history||[]).forEach(h=>all.push({task:t.name,taskId:t.id,...h,archived:false})));
+ (db.archivedHistory||[]).forEach(h=>all.push({task:h.task||'已删除任务',taskId:null,...h,archived:true}));
+ const selected=window.historyTask||'all';
+ const taskOptions=[];
+ db.tasks.forEach(t=>taskOptions.push({value:t.id,label:t.name}));
+ (db.archivedHistory||[]).forEach(h=>{
+   if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
+ });
+ let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
+ a.sort((x,y)=>y.date.localeCompare(x.date));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}</td><td><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -295,6 +304,7 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('input',e=>{if(e.target.dataset.role==='search'){window.q=e.target.value;render()}});
 document.addEventListener('change',e=>{
+  if(e.target.dataset.role==='history-task'){window.historyTask=e.target.value;render();return}
  if(e.target.dataset.role==='filter'){window.f=e.target.value;render()}
  if(e.target.id==='taskArea'){const sub=document.getElementById('taskSub');if(sub)sub.innerHTML=subOpts(e.target.value,'')}
  if(e.target.id==='fileInput'&&e.target.files[0]){importData(e.target.files[0]);e.target.value=''}
