@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>House Maintenance Manager V15</title>
+<title>House Maintenance Manager V16</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -198,10 +198,9 @@ function normalize(x){
 }
 function load(){try{return normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(e){return defaultDB()}}
 let db=load();
-localStorage.setItem(KEY,JSON.stringify(db));
 let page='dashboard';
 
-function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast('存储空间不足，请先导出数据或删除部分照片');return false}}
 function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x.style.display='block';clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>x.style.display='none',1600)}
 function modal(title,body){document.getElementById('modalTitle').textContent=title;document.getElementById('modalBody').innerHTML=body;document.getElementById('modal').classList.add('show')}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
@@ -280,7 +279,7 @@ function photoHTML(photos,historyMode,kind){
  return '<div class="photo-grid">'+p.map((x,i)=>`<div class="photo-card"><img src="${x.data}" alt="${kind==='before'?'Before':'After'} 照片 ${i+1}" data-cmd="photo-view" data-src="${x.data}">${historyMode?'':`<button type="button" class="btn danger small" data-cmd="photo-delete" data-kind="${kind||'after'}" data-index="${i}">删除</button>`}</div>`).join('')+'</div>'
 }
 function photoSection(title,kind){
- return `<div class="photo-section"><div class="section-title"><strong>${title}</strong><span class="meta">照片 / 相册</span></div><label class="btn small photo-pick" style="display:inline-flex;align-items:center;justify-content:center;width:100%;margin:0;cursor:pointer">📷 选择照片或拍照<input id="${kind}Photos" type="file" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"></label><div class="meta">手机可从相册选择，也可在系统选择器中直接拍照；支持多张照片。</div><div id="${kind}PhotoPreview"></div></div>`
+ return `<div class="photo-section"><div class="section-title"><strong>${title}</strong><span class="meta">照片 / 相册</span></div><label class="btn small photo-pick" style="display:inline-flex;align-items:center;justify-content:center;width:100%;margin:0;cursor:pointer">📷 选择照片或拍照<input id="${kind}Photos" type="file" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0"></label><div class="meta">手机可从相册选择，也可在系统选择器中直接拍照；支持多张照片。</div><div id="${kind}PhotoPreview"></div></div>`
 }
 function completeModal(id){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;window.pendingBeforePhotos=[];window.pendingAfterPhotos=[];
