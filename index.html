@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>House Maintenance Manager V16</title>
+<title>House Maintenance Manager V20</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -199,13 +199,26 @@ function normalize(x){
 function load(){try{return normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(e){return defaultDB()}}
 let db=load();
 let page='dashboard';
+window.photoProcessing=0;
+window.pendingComplete=null;
+window.lastMaintenanceDay=iso(today());
+setInterval(()=>{const d=iso(today());if(d!==window.lastMaintenanceDay){window.lastMaintenanceDay=d;render()}},30000);
 
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast('存储空间不足，请先导出数据或删除部分照片');return false}}
+function stripPhotosForLocalStorage(x){
+ const y=clone(x);
+ y.tasks.forEach(t=>(t.history||[]).forEach(h=>{delete h.photos;delete h.beforePhotos;delete h.afterPhotos}));
+ (y.archivedHistory||[]).forEach(h=>{delete h.photos;delete h.beforePhotos;delete h.afterPhotos});
+ return y
+}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(stripPhotosForLocalStorage(db)));return true}
+ catch(e){toast('数据保存失败：浏览器本地存储空间不足，请先导出备份');return false}
+}
 function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x.style.display='block';clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>x.style.display='none',1600)}
 function modal(title,body){document.getElementById('modalTitle').textContent=title;document.getElementById('modalBody').innerHTML=body;document.getElementById('modal').classList.add('show')}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 
-function card(t){return `<div class="task"><div class="task-main"><div><div class="task-name">${esc(t.name)}</div><div class="meta">${esc(areaLabel(t.area))} · ${esc(subLabel(t.area,t.sub))} · ${esc(typeLabel(t.type))} · ${freq(t)}</div><div class="badges">${statusHTML(t)}<span class="badge">到期 ${esc(t.nextDue)}</span></div></div></div><div class="actions"><button type="button" class="btn primary small" data-cmd="task-complete" data-id="${t.id}">✅ 完成</button>${t.unit==='nightly'?'':`<button type="button" class="btn small" data-cmd="task-snooze" data-id="${t.id}">⏭ 延期</button>`}<button type="button" class="btn small" data-cmd="task-edit" data-id="${t.id}">编辑</button><button type="button" class="btn danger small" data-cmd="task-delete" data-id="${t.id}">删除</button></div></div>`}
+function card(t){return `<div class="task"><div class="task-main"><div><div class="task-name">${esc(t.name)}</div><div class="meta">${esc(areaLabel(t.area))} · ${esc(subLabel(t.area,t.sub))} · ${esc(typeLabel(t.type))} · ${freq(t)}</div><div class="badges">${statusHTML(t)}<span class="badge">到期 ${esc(t.nextDue)}</span></div></div></div><div class="actions"><button type="button" class="btn primary small" data-cmd="task-complete" data-id="${t.id}">✅ 完成</button>${t.unit==='nightly'?'':`<button type="button" class="btn small" data-cmd="task-snooze" data-id="${t.id}">⏭ 延期</button>`}<button type="button" class="btn small" data-cmd="task-edit" data-id="${t.id}">编辑</button><button type="button" class="btn small" data-cmd="task-toggle" data-id="${t.id}">${t.enabled?'停用':'启用'}</button><button type="button" class="btn danger small" data-cmd="task-delete" data-id="${t.id}">删除</button></div></div>`}
 
 function render(){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -254,14 +267,76 @@ function renderSettings(c){
 function taskEditor(id){
  const t=id?db.tasks.find(x=>x.id===id):null;
  const a=db.settings.areas[0];
- const v=t||{name:'',type:db.settings.types[0].id,area:a.id,sub:a.subs[0]?.id||'',interval:1,unit:'month',nextDue:iso(today()),reminder:7,notes:'',checklist:[]};
- modal(t?'编辑任务':'添加任务',`<form id="taskForm" class="form"><input type="hidden" name="id" value="${t?esc(t.id):''}"><label>任务名称<input required name="name" value="${esc(v.name)}"></label><div class="grid2"><label>类型<select name="type">${db.settings.types.map(x=>`<option value="${x.id}" ${x.id===v.type?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label><label>区域<select name="area" id="taskArea">${db.settings.areas.map(x=>`<option value="${x.id}" ${x.id===v.area?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><label>子区域<select name="sub" id="taskSub">${subOpts(v.area,v.sub)}</select></label><div class="grid2"><label>周期数量<input required type="number" min="1" step="1" name="interval" value="${v.interval}"></label><label>周期单位<select name="unit"><option value="day" ${v.unit==='day'?'selected':''}>天</option><option value="week" ${v.unit==='week'?'selected':''}>周</option><option value="month" ${v.unit==='month'?'selected':''}>月</option><option value="year" ${v.unit==='year'?'selected':''}>年</option><option value="nightly" ${v.unit==='nightly'?'selected':''}>每晚</option></select></label></div><div class="grid2"><label>下次到期<input required type="date" name="nextDue" value="${esc(v.nextDue)}"></label><label>提前提醒（天）<input type="number" min="0" step="1" name="reminder" value="${v.reminder||0}"></label></div><label>备注<textarea name="notes">${esc(v.notes||'')}</textarea></label><label>Checklist（每行一项）<textarea name="checklist">${esc((v.checklist||[]).map(x=>x.text||x).join('\\n'))}</textarea></label><div class="actions"><button type="button" class="btn primary" data-cmd="task-save">保存</button>${t?`<button type="button" class="btn danger" data-cmd="task-delete" data-id="${esc(t.id)}">删除任务</button>`:''}</div></form>`)
+ const v=t||{name:'',type:db.settings.types[0].id,area:a.id,sub:a.subs[0]?.id||'',interval:1,unit:'month',nextDue:iso(today()),reminder:7,notes:'',checklist:[],enabled:true};
+ modal(t?'编辑任务':'添加任务',`<form id="taskForm" class="form"><input type="hidden" name="id" value="${t?esc(t.id):''}"><label>任务名称<input required name="name" value="${esc(v.name)}"></label><div class="grid2"><label>类型<select name="type">${db.settings.types.map(x=>`<option value="${x.id}" ${x.id===v.type?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label><label>区域<select name="area" id="taskArea">${db.settings.areas.map(x=>`<option value="${x.id}" ${x.id===v.area?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><label>子区域<select name="sub" id="taskSub">${subOpts(v.area,v.sub)}</select></label><div class="grid2"><label>周期数量<input required type="number" min="1" step="1" name="interval" value="${v.interval}"></label><label>周期单位<select name="unit"><option value="day" ${v.unit==='day'?'selected':''}>天</option><option value="week" ${v.unit==='week'?'selected':''}>周</option><option value="month" ${v.unit==='month'?'selected':''}>月</option><option value="year" ${v.unit==='year'?'selected':''}>年</option><option value="nightly" ${v.unit==='nightly'?'selected':''}>每晚</option></select></label></div><div class="grid2"><label>下次到期<input required type="date" name="nextDue" value="${esc(v.nextDue)}"></label><label>提前提醒（天）<input type="number" min="0" step="1" name="reminder" value="${v.reminder||0}"></label></div><label>备注<textarea name="notes">${esc(v.notes||'')}</textarea></label><label>Checklist（每行一项）<textarea name="checklist">${esc((v.checklist||[]).map(x=>x.text||x).join('\n'))}</textarea><label style="display:flex;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" name="enabled" ${v.enabled!==false?'checked':''} style="width:18px;height:18px"> 启用任务</label><div class="actions"><button type="button" class="btn primary" data-cmd="task-save">保存</button>${t?`<button type="button" class="btn danger" data-cmd="task-delete" data-id="${esc(t.id)}">删除任务</button>`:''}</div></form>`)
 }
 function subOpts(area,sel){const a=db.settings.areas.find(x=>x.id===area);return(a?.subs||[]).map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.label)}</option>`).join('')}
 function saveTask(){
+ const snapshot=clone(db);
  const f=new FormData(document.getElementById('taskForm')),id=f.get('id');let t=id?db.tasks.find(x=>x.id===id):null;
  if(!t){t={id:uid('task'),lastCompleted:null,history:[],enabled:true};db.tasks.push(t)}
- t.name=String(f.get('name')||'').trim();t.type=f.get('type');t.area=f.get('area');t.sub=f.get('sub');t.interval=Math.max(1,parseInt(f.get('interval'))||1);t.unit=f.get('unit');t.nextDue=f.get('nextDue')||iso(today());t.reminder=Math.max(0,parseInt(f.get('reminder'))||0);t.notes=f.get('notes')||'';t.checklist=String(f.get('checklist')||'').split('\\n').map(x=>x.trim()).filter(Boolean).map(text=>({text,done:false}));save();closeModal();render();toast('任务已保存')
+ t.enabled=f.get('enabled')==='on';t.name=String(f.get('name')||'').trim();t.type=f.get('type');t.area=f.get('area');t.sub=f.get('sub');
+ t.interval=Math.max(1,parseInt(f.get('interval'))||1);t.unit=f.get('unit');t.nextDue=f.get('nextDue')||iso(today());t.reminder=Math.max(0,parseInt(f.get('reminder'))||0);t.notes=f.get('notes')||'';
+ t.checklist=String(f.get('checklist')||'').split('\n').map(x=>x.trim()).filter(Boolean).map(text=>({text,done:false}));
+ if(!save()){db=snapshot;return} closeModal();render();toast('任务已保存')
+}
+
+const PHOTO_DB='houseMaintenancePhotos_v1';
+let photoDBPromise=null;
+function openPhotoDB(){
+ if(photoDBPromise)return photoDBPromise;
+ photoDBPromise=new Promise((resolve,reject)=>{
+  if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return}
+  const r=indexedDB.open(PHOTO_DB,1);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos',{keyPath:'key'})};
+  r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('IndexedDB open failed'));
+ });
+ return photoDBPromise
+}
+function photoKey(historyId,kind,index){return `${historyId}::${kind}::${index}`}
+async function idbPutPhotos(historyId,kind,photos){
+ const dbi=await openPhotoDB();
+ return new Promise((resolve,reject)=>{
+  const tx=dbi.transaction('photos','readwrite'),st=tx.objectStore('photos');
+  photos.forEach((p,i)=>st.put({key:photoKey(historyId,kind,i),historyId,kind,index:i,data:p.data}));
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('photo save failed'));
+ })
+}
+async function idbGetPhotos(historyId,kind){
+ const dbi=await openPhotoDB();
+ return new Promise((resolve,reject)=>{
+  const tx=dbi.transaction('photos','readonly'),st=tx.objectStore('photos'),out=[];
+  const req=st.openCursor();
+  req.onsuccess=()=>{const c=req.result;if(!c){resolve(out.sort((a,b)=>a.index-b.index));return}const v=c.value;if(String(v.historyId)===String(historyId)&&v.kind===kind)out.push(v);c.continue()};
+  req.onerror=()=>reject(req.error||new Error('photo read failed'));
+ })
+}
+async function idbDeleteHistoryPhotos(historyId){
+ const dbi=await openPhotoDB();
+ return new Promise((resolve,reject)=>{
+  const tx=dbi.transaction('photos','readwrite'),st=tx.objectStore('photos'),req=st.openCursor();
+  req.onsuccess=()=>{const c=req.result;if(!c)return;if(String(c.value.historyId)===String(historyId))c.delete();c.continue()};
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('photo delete failed'));
+ })
+}
+async function persistHistoryPhotos(h){
+ const b=Array.isArray(h.beforePhotos)?h.beforePhotos:[],a=Array.isArray(h.afterPhotos)?h.afterPhotos:[];
+ if(!b.length&&!a.length)return;
+ await Promise.all([idbPutPhotos(h.id,'before',b),idbPutPhotos(h.id,'after',a)]);
+}
+async function hydrateHistoryPhotos(h){
+ try{
+  if(!h||!h.id)return;
+  const [b,a]=await Promise.all([idbGetPhotos(h.id,'before'),idbGetPhotos(h.id,'after')]);
+  if((!Array.isArray(h.beforePhotos)||!h.beforePhotos.length)&&b.length)h.beforePhotos=b.map(x=>({data:x.data}));
+  if((!Array.isArray(h.afterPhotos)||!h.afterPhotos.length)&&a.length)h.afterPhotos=a.map(x=>({data:x.data}));
+ }catch(_){}
+}
+async function hydrateAllPhotos(){
+ const jobs=[];
+ db.tasks.forEach(t=>(t.history||[]).forEach(h=>jobs.push(hydrateHistoryPhotos(h))));
+ (db.archivedHistory||[]).forEach(h=>jobs.push(hydrateHistoryPhotos(h)));
+ await Promise.all(jobs);render();
 }
 function compressPhoto(file){
  return new Promise((resolve,reject)=>{
@@ -285,25 +360,40 @@ function completeModal(id){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;window.pendingBeforePhotos=[];window.pendingAfterPhotos=[];
  modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><div class="before-after-grid">${photoSection('📷 Before：任务开始前','before')}${photoSection('📷 After：任务完成后','after')}</div><div class="notice">建议先拍 Before 照片，再进行清洁/维护，完成后拍 After 照片。历史记录中可直接进行前后对比。</div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
 }
-function saveComplete(id){
- const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('completeForm')),date=f.get('date');
- t.lastCompleted=date;
- t.nextDue=iso(addPeriod(parseISO(date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));
- t.history.unshift({
-  id:uid('hist'),
-  date,
-  condition:f.get('condition'),
-  cost:Number(f.get('cost')||0),
-  notes:f.get('notes')||'',
-  temperature:f.get('temp')||'',
-  beforePhotos:Array.isArray(window.pendingBeforePhotos)?window.pendingBeforePhotos:[],
-  afterPhotos:Array.isArray(window.pendingAfterPhotos)?window.pendingAfterPhotos:[],
-  photos:Array.isArray(window.pendingAfterPhotos)?window.pendingAfterPhotos:[],
-  checklistResults:(t.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'}))
- });
- save();closeModal();render();toast('完成记录已保存')
+function captureCompleteState(id){
+ const form=document.getElementById('completeForm');if(!form)return null;
+ const f=new FormData(form);
+ return {id,date:f.get('date')||iso(today()),condition:f.get('condition')||'Normal',cost:Number(f.get('cost')||0),notes:f.get('notes')||'',temperature:f.get('temp')||'',
+ checklist:(db.tasks.find(x=>x.id===id)?.checklist||[]).map((x,i)=>({text:x.text,done:f.get('c'+i)==='on'})),
+ beforePhotos:clone(window.pendingBeforePhotos||[]),afterPhotos:clone(window.pendingAfterPhotos||[])};
 }
-
+function reopenCompleteState(state){
+ completeModal(state.id);
+ const form=document.getElementById('completeForm');if(!form)return;
+ ['date','condition','cost','notes','temp'].forEach(k=>{if(form.elements[k])form.elements[k].value=state[k]??''});
+ (state.checklist||[]).forEach((x,i)=>{if(form.elements['c'+i])form.elements['c'+i].checked=!!x.done});
+ window.pendingBeforePhotos=clone(state.beforePhotos||[]);window.pendingAfterPhotos=clone(state.afterPhotos||[]);
+ ['before','after'].forEach(k=>{const p=document.getElementById(k+'PhotoPreview');if(p)p.innerHTML=photoHTML(k==='before'?window.pendingBeforePhotos:window.pendingAfterPhotos,false,k)});
+}
+async function saveComplete(id,force){
+ if((window.photoProcessing||0)>0){toast('照片仍在处理中，请稍候再保存');return}
+ const state=captureCompleteState(id);if(!state)return;
+ const unchecked=state.checklist.filter(x=>!x.done).length;
+ if(unchecked&&!force){
+  window.pendingComplete=state;
+  modal('还有 Checklist 未完成',`<div class="notice">还有 <strong>${unchecked}</strong> 个小项没有完成。你可以返回继续勾选，也可以跳过这些小项并完成整个任务。</div><div class="actions"><button type="button" class="btn" data-cmd="complete-back">返回继续勾选</button><button type="button" class="btn primary" data-cmd="complete-force-save" data-id="${esc(id)}">确定跳过并完成</button></div>`);
+  return
+ }
+ const t=db.tasks.find(x=>x.id===id);if(!t)return;
+ const snapshot=clone(db);
+ t.lastCompleted=state.date;t.nextDue=iso(addPeriod(parseISO(state.date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));
+ t.history.unshift({id:uid('hist'),date:state.date,condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
+ if(!save()){db=snapshot;return}
+ const savedHistory=t.history[0];
+ try{await persistHistoryPhotos(savedHistory)}
+ catch(e){toast('记录已保存，但照片无法保存到浏览器照片库')}
+ window.pendingComplete=null;closeModal();render();toast('完成记录已保存')
+}
 function comparePhotosModal(h){
  const before=Array.isArray(h.beforePhotos)?h.beforePhotos:[],after=Array.isArray(h.afterPhotos)?h.afterPhotos:(Array.isArray(h.photos)?h.photos:[]);
  if(!before.length&&!after.length){modal('Before / After 对比','<div class="empty">这条历史记录没有照片。</div>');return}
@@ -320,11 +410,12 @@ function deleteHistory(taskId,historyId,archived){
   const t=db.tasks.find(x=>x.id===taskId);
   if(t)t.history=(t.history||[]).filter(h=>h.id!==historyId);
  }
- save();render();toast('历史记录已删除');
+ if(save()){idbDeleteHistoryPhotos(historyId).catch(()=>{});render();toast('历史记录已删除')};
 }
 function deleteTaskConfirm(id){const t=db.tasks.find(x=>x.id===id);if(!t)return;modal('确认删除任务',`<div class="notice">确定删除 <strong>${esc(t.name)}</strong> 吗？<br>该任务的历史记录会保留在“历史”中。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-cmd="task-delete-confirm" data-id="${esc(id)}">确定删除</button></div>`)}
 function snoozeModal(id){modal('延期任务',`<form class="form" id="snoozeForm"><label>延后天数<input required type="number" min="1" step="1" name="days" value="7"></label><div class="actions"><button type="button" class="btn primary" data-cmd="snooze-save" data-id="${esc(id)}">保存延期</button></div></form>`)}
 function saveSnooze(id){const t=db.tasks.find(x=>x.id===id);if(!t)return;const f=new FormData(document.getElementById('snoozeForm')),n=Math.max(1,parseInt(f.get('days'))||1);t.nextDue=iso(addPeriod(parseISO(t.nextDue),n,'day'));save();closeModal();render();toast('任务已延期')}
+function toggleTask(id){const t=db.tasks.find(x=>x.id===id);if(!t)return;const snapshot=clone(db);t.enabled=!t.enabled;if(!save()){db=snapshot;return}render();toast(t.enabled?'任务已启用':'任务已停用')}
 
 function typeEditor(id){const x=id?db.settings.types.find(v=>v.id===id):null;modal(x?'编辑任务类型':'新增任务类型',`<form id="typeForm" class="form"><input type="hidden" name="id" value="${x?esc(x.id):''}"><label>类型名称<input required name="label" value="${x?esc(x.label):''}"></label><div class="actions"><button type="button" class="btn primary" data-settings="type-save">保存</button></div></form>`)}
 function typeDelete(id){const x=db.settings.types.find(v=>v.id===id);if(!x)return;if(db.settings.types.length<=1){toast('至少保留一个任务类型');return}modal('删除任务类型',`<div class="notice">删除“${esc(x.label)}”后，使用它的任务会自动移动到其他类型。</div><div class="actions"><button type="button" class="btn" data-cmd="modal-close">取消</button><button type="button" class="btn danger" data-settings="type-delete-confirm" data-id="${esc(id)}">确定删除</button></div>`)}
@@ -342,8 +433,8 @@ function subSave(){const f=new FormData(document.getElementById('subForm')),area
 function subDeleteConfirm(area,id){const a=db.settings.areas.find(v=>v.id===area);if(!a)return;const remain=a.subs.filter(v=>v.id!==id),fallback=remain[0]?.id;db.tasks.forEach(t=>{if(t.area===area&&t.sub===id)t.sub=fallback});a.subs=remain;save();closeModal();render();toast('子区域已删除')}
 
 function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`house-maintenance-v4-${iso(today())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
-function resetData(){db=defaultDB();save();closeModal();render();toast('已恢复初始数据')}
-function importData(file){const r=new FileReader();r.onload=()=>{try{db=normalize(JSON.parse(r.result));save();render();toast('导入成功')}catch(e){alert('导入失败：不是有效的备份文件')}};r.readAsText(file)}
+function resetData(){const snapshot=clone(db);db=defaultDB();if(!save()){db=snapshot;return}closeModal();render();toast('已恢复初始数据')}
+function importData(file){const r=new FileReader();r.onload=()=>{try{const incoming=normalize(JSON.parse(r.result)),snapshot=clone(db);db=incoming;if(!save()){db=snapshot;return}render();hydrateAllPhotos();toast('导入成功')}catch(e){alert('导入失败：不是有效的备份文件')}};r.readAsText(file)}
 
 document.addEventListener('click',function(e){
  const nav=e.target.closest('[data-page]');
@@ -372,11 +463,36 @@ document.addEventListener('click',function(e){
  save();closeModal();render();toast('任务已删除，相关历史记录已保留')
 }
   else if(a==='history-delete')deleteHistory(c.dataset.task,c.dataset.history,c.dataset.archived);
-  else if(a==='task-snooze')snoozeModal(id);else if(a==='snooze-save')saveSnooze(id);else if(a==='task-save')saveTask();else if(a==='complete-save')saveComplete(id);else if(a==='modal-close')closeModal();else if(a==='export')exportData();else if(a==='import')document.getElementById('fileInput').click();else if(a==='reset'){if(confirm('确定恢复全部初始数据吗？当前任务、历史和分类都会被覆盖。'))resetData()}
+  else if(a==='task-snooze')snoozeModal(id);else if(a==='snooze-save')saveSnooze(id);else if(a==='task-toggle')toggleTask(id);else if(a==='task-save')saveTask();else if(a==='complete-save')saveComplete(id,false);else if(a==='complete-force-save')saveComplete(id,true);else if(a==='complete-back'){const state=window.pendingComplete;if(state)reopenCompleteState(state);else closeModal();}else if(a==='modal-close')closeModal();else if(a==='export')exportData();else if(a==='import')document.getElementById('fileInput').click();else if(a==='reset'){if(confirm('确定恢复全部初始数据吗？当前任务、历史和分类都会被覆盖。'))resetData()}
  }
 });
-document.addEventListener('input',e=>{if(e.target.dataset.role==='search'){window.q=e.target.value;render()}});
-document.addEventListener('change',e=>{if(e.target.id==='beforePhotos'||e.target.id==='afterPhotos'){const kind=e.target.id==='beforePhotos'?'before':'after',fs=Array.from(e.target.files||[]);Promise.all(fs.map(compressPhoto)).then(xs=>{const key=kind==='before'?'pendingBeforePhotos':'pendingAfterPhotos';window[key]=(window[key]||[]).concat(xs.map(data=>({data})));const p=document.getElementById(kind+'PhotoPreview');if(p)p.innerHTML=photoHTML(window[key],false,kind)}).catch(()=>toast('照片处理失败'));e.target.value='';return}
+let searchComposing=false,searchRenderTimer=null;
+document.addEventListener('compositionstart',e=>{if(e.target.dataset.role==='search')searchComposing=true});
+document.addEventListener('compositionend',e=>{
+ if(e.target.dataset.role==='search'){
+  searchComposing=false;window.q=e.target.value;renderTasks(document.getElementById('content'));
+  const s=document.querySelector('[data-role="search"]');
+  if(s){s.focus();try{s.setSelectionRange(s.value.length,s.value.length)}catch(_){}}
+ }
+});
+document.addEventListener('input',e=>{
+ if(e.target.dataset.role==='search'){
+  window.q=e.target.value;if(searchComposing)return;
+  clearTimeout(searchRenderTimer);
+  searchRenderTimer=setTimeout(()=>{
+   if(page!=='tasks')return;
+   renderTasks(document.getElementById('content'));
+   const s=document.querySelector('[data-role="search"]');
+   if(s){s.focus();try{s.setSelectionRange(s.value.length,s.value.length)}catch(_){}}
+  },0);
+ }
+});
+document.addEventListener('change',e=>{if(e.target.id==='beforePhotos'||e.target.id==='afterPhotos'){
+ const kind=e.target.id==='beforePhotos'?'before':'after',fs=Array.from(e.target.files||[]);if(!fs.length)return;
+ window.photoProcessing=(window.photoProcessing||0)+fs.length;
+ Promise.all(fs.map(compressPhoto)).then(xs=>{const key=kind==='before'?'pendingBeforePhotos':'pendingAfterPhotos';window[key]=(window[key]||[]).concat(xs.map(data=>({data})));const p=document.getElementById(kind+'PhotoPreview');if(p)p.innerHTML=photoHTML(window[key],false,kind)})
+ .catch(()=>toast('照片处理失败')).finally(()=>{window.photoProcessing=Math.max(0,(window.photoProcessing||0)-fs.length)});
+ e.target.value='';return}
   
   if(e.target.dataset.role==='history-task'){window.historyTask=e.target.value;render();return}
  if(e.target.dataset.role==='filter'){window.f=e.target.value;render()}
@@ -384,6 +500,7 @@ document.addEventListener('change',e=>{if(e.target.id==='beforePhotos'||e.target
  if(e.target.id==='fileInput'&&e.target.files[0]){importData(e.target.files[0]);e.target.value=''}
 });
 render();
+hydrateAllPhotos();
 </script>
 </body>
 </html>
