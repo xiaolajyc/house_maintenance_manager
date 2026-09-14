@@ -403,16 +403,16 @@ function formatCompletedAt(h){
   return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 }
 function historySort(a,b){
-  const d=String(b.date||'').localeCompare(String(a.date||''));
-  if(d)return d;
-  const tb=completionTime(b),ta=completionTime(a);
-  if(tb||ta){
-    if(tb&&!ta)return -1;
-    if(!tb&&ta)return 1;
-    const t=tb.localeCompare(ta);
-    if(t)return -t;
-  }
-  return 0;
+ const ta=String(a.completedAt||'');
+ const tb=String(b.completedAt||'');
+ if(ta||tb){
+  if(!ta)return 1;
+  if(!tb)return -1;
+  const cmp=tb.localeCompare(ta);
+  if(cmp!==0)return cmp;
+ }
+ const da=String(a.date||'');const db=String(b.date||'');
+ return db.localeCompare(da);
 }
 function renderHistory(c){
  const all=[];
