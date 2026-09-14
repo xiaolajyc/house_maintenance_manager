@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>房屋维护管理 V26</title>
+<title>房屋维护管理 V27</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -301,6 +301,10 @@ const DEFAULT_TASKS=[
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function uid(p){return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function calendarToday(){
+ const d=new Date();
+ return new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
 function today(){
  const d=new Date();
  if(d.getHours()<DAY_START_HOUR)d.setDate(d.getDate()-1);
@@ -525,7 +529,7 @@ function photoSection(title,kind){
 }
 function completeModal(id){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;window.pendingBeforePhotos=[];window.pendingAfterPhotos=[];
- modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期<input required type="date" name="date" value="${iso(today())}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><div class="before-after-grid">${photoSection('📷 Before：任务开始前','before')}${photoSection('📷 After：任务完成后','after')}</div><div class="notice">建议先拍 Before 照片，再进行清洁/维护，完成后拍 After 照片。历史记录中可直接进行前后对比。</div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
+ modal(`完成：${t.name}`,`<form id="completeForm" class="form"><div class="notice"><strong>任务备注</strong><br>${t.notes?esc(t.notes).replace(/\n/g,'<br>'):'暂无备注'}</div>${t.unit==='nightly'&&t.name==='堆肥测量温度'?'<label>堆肥温度（°C）<input required type="number" step="0.1" name="temp"></label>':''}${t.checklist.length?`<div><div class="meta" style="margin-bottom:6px">Checklist</div><div class="checklist-grid">${t.checklist.map((x,i)=>`<label class="check-item"><input type="checkbox" name="c${i}"><span>${esc(x.text)}</span></label>`).join('')}</div></div>`:''}<div class="grid2"><label>完成日期 <span class="meta">（实际日历日期）</span><input required type="date" name="date" value="${esc(state.date||iso(calendarToday()))}"></label><label>状态<select name="condition"><option>Normal</option><option>Minor issue</option><option>Needs attention</option><option>Major issue</option></select></label></div><div class="grid2"><label>花费<input type="number" min="0" step="0.01" name="cost" value="0"></label><label>本次完成备注<textarea name="notes"></textarea></label></div><div class="before-after-grid">${photoSection('📷 Before：任务开始前','before')}${photoSection('📷 After：任务完成后','after')}</div><div class="notice">建议先拍 Before 照片，再进行清洁/维护，完成后拍 After 照片。历史记录中可直接进行前后对比。</div><div class="actions"><button type="button" class="btn primary" data-cmd="complete-save" data-id="${esc(id)}">保存完成</button></div></form>`)
 }
 function captureCompleteState(id){
  const form=document.getElementById('completeForm');if(!form)return null;
@@ -554,7 +558,7 @@ async function saveComplete(id,force){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;
  const snapshot=clone(db);
  t.lastCompleted=state.date;t.nextDue=iso(addPeriod(parseISO(state.date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));
- t.history.unshift({id:uid('hist'),date:state.date,completedAt:new Date().toISOString(),condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
+ t.history.unshift({id:uid('hist'),date:state.date||iso(calendarToday()),completedAt:new Date().toISOString(),condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
  if(!save()){db=snapshot;return}
  const savedHistory=t.history[0];
  try{await persistHistoryPhotos(savedHistory)}
