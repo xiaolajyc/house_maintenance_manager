@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>房屋维护管理 V21</title>
+<title>房屋维护管理 V23</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -122,6 +122,63 @@ footer{color:#8a9ba8;padding-top:16px}
 }
 @media(max-width:390px){.nav button{font-size:9px}.nav button span{font-size:17px}.stats{grid-template-columns:1fr 1fr}.header-add{width:40px;height:40px}}
 
+
+/* V23 visual polish — dragon mascot + unified icon navigation */
+:root{
+ --blue-soft:#eaf5ff;--green-soft:#eaf9f2;--orange-soft:#fff5df;--purple-soft:#f2edff;
+ --nav-ink:#71899c;--nav-active:#1683d8
+}
+.app-header{position:relative;min-height:88px;display:flex;align-items:center;justify-content:space-between;gap:14px;overflow:hidden;padding:2px 2px 9px}
+.brand{position:relative;z-index:2}
+.brand-icon{display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#2d9bea,#0d6eb8)}
+.brand-icon svg{width:27px;height:27px}
+.header-mascot{position:absolute;right:50px;top:-34px;height:150px;width:245px;pointer-events:none;display:flex;align-items:center;justify-content:flex-end}
+.header-mascot img{height:150px;width:150px;object-fit:cover;border-radius:50%;filter:drop-shadow(0 10px 16px rgba(28,82,117,.12))}
+.mascot-slogan{font-size:11px;line-height:1.55;font-weight:700;color:#47708e;transform:rotate(-3deg);margin-left:-6px;text-align:center}
+.nav{display:grid;grid-template-columns:repeat(7,1fr);align-items:center}
+.nav button{min-width:0}
+.nav .nav-icon{display:grid;place-items:center}
+.nav .nav-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.nav .nav-label{line-height:1}
+.nav .nav-add{position:relative;overflow:visible;background:linear-gradient(145deg,#21a0f3,#0f76c6);color:#fff!important;border-radius:50%;width:58px;height:58px;min-height:58px;padding:0;justify-self:center;box-shadow:0 9px 22px rgba(22,131,216,.28);transform:translateY(-11px);border:5px solid #f4f8fc}
+.nav .nav-add .nav-icon svg{width:29px;height:29px;stroke-width:2.3}
+.nav .nav-add .nav-label{position:absolute;top:63px;color:#5e7890;font-size:10px;font-weight:700}
+.nav button.active{background:linear-gradient(135deg,#198bdd,#0f75c2)}
+.task{position:relative}
+.task-type-icon{width:46px;height:46px;flex:0 0 46px;border-radius:14px;display:grid;place-items:center;font-size:23px;background:var(--blue-soft)}
+.task-type-icon.maintenance{background:var(--orange-soft)}
+.task-type-icon.inspection{background:var(--green-soft)}
+.task-type-icon.consumable{background:var(--purple-soft)}
+.task-card-row{display:flex;gap:12px;align-items:flex-start}
+.task-card-content{min-width:0;flex:1}
+.task-card-more{position:absolute;right:13px;top:11px;color:#7891a3;font-size:21px;line-height:1}
+.dashboard-section .section-title{padding:0 3px}
+.dashboard-section .section-title h2{font-size:21px}
+.stat{min-height:108px;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:720px){
+ .app-header{min-height:82px;padding-bottom:7px}
+ .header-mascot{right:0;top:-22px;height:115px;width:180px}
+ .header-mascot img{height:112px;width:112px}
+ .mascot-slogan{display:none}
+ .brand{max-width:58%}
+ .brand-copy h1{white-space:nowrap}
+ .header-add{display:none}
+ .nav{left:7px;right:7px;bottom:7px;padding:5px 4px;border-radius:22px;grid-template-columns:repeat(7,1fr)}
+ .nav button{min-height:53px;padding:7px 1px;gap:3px}
+ .nav .nav-icon svg{width:20px;height:20px}
+ .nav .nav-label{font-size:10px}
+ .nav .nav-add{width:58px;height:58px;min-height:58px;transform:translateY(-13px)}
+ .nav .nav-add .nav-label{top:61px}
+ .task-type-icon{width:42px;height:42px;flex-basis:42px;border-radius:13px;font-size:21px}
+ .task-card-row{gap:10px}
+}
+@media(max-width:390px){
+ .nav .nav-icon svg{width:18px;height:18px}
+ .nav .nav-label{font-size:9px}
+ .nav .nav-add{width:54px;height:54px;min-height:54px}
+ .nav .nav-add .nav-label{top:57px}
+}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -135,18 +192,28 @@ footer{color:#8a9ba8;padding-top:16px}
 </head>
 <body>
 <div class="app">
-<header>
-  <div class="brand"><div class="brand-icon">⌂</div><div><h1>房屋维护管理</h1><div class="subtitle">让家的每一处都被用心守护</div></div></div>
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><path d="M7 23.5 24 9l17 14.5v16a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/><path d="M18 42V29h12v13" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="brand-copy"><h1>房屋维护管理</h1><div class="subtitle">让家的每一处都被用心守护</div></div>
+  </div>
+  <div class="header-mascot">
+    <img src="./dragon-repair.png" alt="龙正在修理房屋">
+    <div class="mascot-slogan">更好的家<br>更美好的生活</div>
+  </div>
   <button type="button" class="btn primary header-add" data-cmd="task-add">＋ 添加任务</button>
 </header>
 
-<nav class="nav" id="nav">
- <button type="button" class="active" data-page="dashboard"><span>⌂</span> 首页</button>
- <button type="button" data-page="tasks"><span>✓</span> 任务</button>
- <button type="button" data-page="maintenance"><span>⌁</span> 维护</button>
- <button type="button" data-page="calendar"><span>□</span> 日历</button>
- <button type="button" data-page="history"><span>◷</span> 历史</button>
- <button type="button" data-page="settings"><span>⚙</span> 设置</button>
+<nav class="nav" id="nav" aria-label="主导航">
+ <button type="button" class="active" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span><span class="nav-label">首页</span></button>
+ <button type="button" data-page="tasks"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span><span class="nav-label">任务</span></button>
+ <button type="button" data-page="maintenance"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m14.5 6.5 3-3 3 3-3 3"/><path d="m13 8-7.5 7.5a2.1 2.1 0 0 0 3 3L16 11"/><path d="M5 5h4M5 9h3"/></svg></span><span class="nav-label">维护</span></button>
+ <button type="button" class="nav-add" data-cmd="task-add" aria-label="添加任务"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="nav-label">添加</span></button>
+ <button type="button" data-page="calendar"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M7 3v4M17 3v4M3.5 9h17"/></svg></span><span class="nav-label">日历</span></button>
+ <button type="button" data-page="history"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">历史</span></button>
+ <button type="button" data-page="settings"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></span><span class="nav-label">设置</span></button>
 </nav>
 
 <main id="content"></main>
@@ -275,7 +342,8 @@ function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x
 function modal(title,body){document.getElementById('modalTitle').textContent=title;document.getElementById('modalBody').innerHTML=body;document.getElementById('modal').classList.add('show')}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 
-function card(t){return `<div class="task"><div class="task-main"><div><div class="task-name">${esc(t.name)}</div><div class="meta">${esc(areaLabel(t.area))} · ${esc(subLabel(t.area,t.sub))} · ${esc(typeLabel(t.type))} · ${freq(t)}</div><div class="badges">${statusHTML(t)}<span class="badge">到期 ${esc(t.nextDue)}</span></div></div></div><div class="actions"><button type="button" class="btn primary small" data-cmd="task-complete" data-id="${t.id}">✅ 完成</button>${t.unit==='nightly'?'':`<button type="button" class="btn small" data-cmd="task-snooze" data-id="${t.id}">⏭ 延期</button>`}<button type="button" class="btn small" data-cmd="task-edit" data-id="${t.id}">编辑</button><button type="button" class="btn small" data-cmd="task-toggle" data-id="${t.id}">${t.enabled?'停用':'启用'}</button><button type="button" class="btn danger small" data-cmd="task-delete" data-id="${t.id}">删除</button></div></div>`}
+function typeIcon(t){return t.type==='maintenance'?'🔧':t.type==='inspection'?'🔍':t.type==='consumable'?'📦':'✓'}
+function card(t){return `<div class="task"><div class="task-card-more">•••</div><div class="task-card-row"><div class="task-type-icon ${esc(t.type)}">${typeIcon(t)}</div><div class="task-card-content"><div class="task-name">${esc(t.name)}</div><div class="meta">${esc(areaLabel(t.area))} · ${esc(subLabel(t.area,t.sub))} · ${esc(typeLabel(t.type))} · ${freq(t)}</div><div class="badges">${statusHTML(t)}<span class="badge">到期 ${esc(t.nextDue)}</span></div></div></div><div class="actions"><button type="button" class="btn primary small" data-cmd="task-complete" data-id="${t.id}">✓ 完成</button>${t.unit==='nightly'?'':`<button type="button" class="btn small" data-cmd="task-snooze" data-id="${t.id}">⏭ 延期</button>`}<button type="button" class="btn small" data-cmd="task-edit" data-id="${t.id}">编辑</button><button type="button" class="btn small" data-cmd="task-toggle" data-id="${t.id}">${t.enabled?'停用':'启用'}</button><button type="button" class="btn danger small" data-cmd="task-delete" data-id="${t.id}">删除</button></div></div>`}
 
 function render(){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -286,7 +354,7 @@ function renderDashboard(c){
  const en=db.tasks.filter(t=>t.enabled),ov=en.filter(t=>status(t)==='overdue'),td=en.filter(t=>status(t)==='today'),up=en.filter(t=>status(t)==='upcoming').sort((a,b)=>a.nextDue.localeCompare(b.nextDue)).slice(0,8),night=en.filter(t=>t.unit==='nightly');
  c.innerHTML=`<div class="dashboard-hero"><div><div class="hero-kicker">今日维护日</div><div class="hero-date">${esc(iso(today()))}</div><div class="hero-note">每天 ${DAY_START_HOUR}:00 自动切换维护日</div></div><div class="hero-sun">☀</div></div><div class="stats"><div class="stat"><b style="color:var(--danger)">${ov.length}</b><span>逾期</span></div><div class="stat"><b style="color:var(--warn)">${td.length}</b><span>今天到期</span></div><div class="stat"><b style="color:var(--ok)">${up.length}</b><span>近期任务</span></div><div class="stat"><b>${en.length}</b><span>启用任务</span></div></div><div class="panel">${sec('🔴 逾期',ov)}${sec('📌 今天',td)}${night.length?sec('🌙 今晚',night):''}${sec('🟠 即将到期',up)}</div>`
 }
-function sec(title,arr){return `<div class="section"><div class="section-title"><h2>${title}</h2></div>${arr.length?`<div class="task-list">${arr.map(card).join('')}</div>`:'<div class="empty">暂无任务</div>'}</div>`}
+function sec(title,arr){return `<div class="section dashboard-section"><div class="section-title"><h2>${title}</h2></div>${arr.length?`<div class="task-list">${arr.map(card).join('')}</div>`:'<div class="empty">暂无任务</div>'}</div>`}
 function renderTasks(c){const q=(window.q||'').toLowerCase(),f=window.f||'all';let a=db.tasks.filter(t=>t.name.toLowerCase().includes(q)||subLabel(t.area,t.sub).toLowerCase().includes(q));if(f!=='all')a=a.filter(t=>t.type===f);c.innerHTML=`<div class="panel"><h2>📋 所有任务</h2><div class="toolbar"><input data-role="search" value="${esc(q)}" placeholder="搜索任务"><select data-role="filter"><option value="all">全部类型</option>${db.settings.types.map(x=>`<option value="${x.id}" ${f===x.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button type="button" class="btn primary" data-cmd="task-add">＋ 添加</button></div><div class="task-list">${a.map(card).join('')||'<div class="empty">没有找到任务</div>'}</div></div>`}
 function renderMaintenance(c){c.innerHTML=`<div class="panel"><h2>🔧 房屋维护</h2><div class="task-list">${db.tasks.filter(t=>t.enabled&&t.type==='maintenance').map(card).join('')||'<div class="empty">暂无维护任务</div>'}</div></div>`}
 function renderCalendar(c){
