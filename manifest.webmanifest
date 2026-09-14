@@ -1,14 +1,12 @@
 {
   "name": "房屋维护管理",
   "short_name": "房屋维护",
-  "description": "简单、实用、美观的家庭房屋维护管理应用",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f4f8fc",
   "theme_color": "#1683d8",
-  "lang": "zh-CN",
+  "background_color": "#f4f8fc",
   "icons": [
     {
       "src": "./icon-192.png",

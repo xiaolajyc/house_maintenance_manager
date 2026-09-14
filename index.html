@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>房屋维护管理 V24</title>
+<title>房屋维护管理 V25</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -179,6 +179,20 @@ footer{color:#8a9ba8;padding-top:16px}
  .nav .nav-add .nav-label{top:57px}
 }
 
+
+/* V25: flat logo + history photo editor */
+.header-logo{position:absolute;right:4px;top:-5px;width:78px;height:78px;display:grid;place-items:center;z-index:3}
+.header-logo img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 7px 12px rgba(25,91,130,.14))}
+@media(max-width:720px){
+ .header-logo{right:2px;top:-1px;width:70px;height:70px}
+}
+.history-photo-editor{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:16px;background:#f8fbfe}
+.history-photo-editor .photo-section{margin-top:10px}
+.history-photo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.photo-mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.photo-mini-grid img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px}
+@media(max-width:560px){.photo-mini-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -199,9 +213,8 @@ footer{color:#8a9ba8;padding-top:16px}
     </div>
     <div class="brand-copy"><h1>房屋维护管理</h1><div class="subtitle">让家的每一处都被用心守护</div></div>
   </div>
-  <div class="header-mascot">
-    <img src="./dragon-repair.png" alt="龙正在修理房屋">
-    <div class="mascot-slogan">更好的家<br>更美好的生活</div>
+  <div class="header-logo" aria-label="房屋维护管理 Logo">
+    <img src="./app-logo.png" alt="房屋维护管理 Logo">
   </div>
   <button type="button" class="btn primary header-add" data-cmd="task-add">＋ 添加任务</button>
 </header>
@@ -355,8 +368,8 @@ function renderDashboard(c){
  c.innerHTML=`<div class="dashboard-hero"><div><div class="hero-kicker">今日维护日</div><div class="hero-date">${esc(iso(today()))}</div><div class="hero-note">每天 ${DAY_START_HOUR}:00 自动切换维护日</div></div><div class="hero-sun">☀</div></div><div class="stats"><div class="stat"><b style="color:var(--danger)">${ov.length}</b><span>逾期</span></div><div class="stat"><b style="color:var(--warn)">${td.length}</b><span>今天到期</span></div><div class="stat"><b style="color:var(--ok)">${up.length}</b><span>近期任务</span></div><div class="stat"><b>${en.length}</b><span>启用任务</span></div></div><div class="panel">${sec('🔴 逾期',ov)}${sec('📌 今天',td)}${night.length?sec('🌙 今晚',night):''}${sec('🟠 即将到期',up)}</div>`
 }
 function sec(title,arr){return `<div class="section dashboard-section"><div class="section-title"><h2>${title}</h2></div>${arr.length?`<div class="task-list">${arr.map(card).join('')}</div>`:'<div class="empty">暂无任务</div>'}</div>`}
-function renderTasks(c){const q=(window.q||'').toLowerCase(),f=window.f||'all';let a=db.tasks.filter(t=>t.name.toLowerCase().includes(q)||subLabel(t.area,t.sub).toLowerCase().includes(q));if(f!=='all')a=a.filter(t=>t.type===f);c.innerHTML=`<div class="panel"><h2>📋 所有任务</h2><div class="toolbar"><input data-role="search" value="${esc(q)}" placeholder="搜索任务"><select data-role="filter"><option value="all">全部类型</option>${db.settings.types.map(x=>`<option value="${x.id}" ${f===x.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button type="button" class="btn primary" data-cmd="task-add">＋ 添加</button></div><div class="task-list">${a.map(card).join('')||'<div class="empty">没有找到任务</div>'}</div></div>`}
-function renderMaintenance(c){c.innerHTML=`<div class="panel"><h2>🔧 房屋维护</h2><div class="task-list">${db.tasks.filter(t=>t.enabled&&t.type==='maintenance').map(card).join('')||'<div class="empty">暂无维护任务</div>'}</div></div>`}
+function renderTasks(c){const q=(window.q||'').toLowerCase(),f=window.f||'all';let a=db.tasks.filter(t=>t.name.toLowerCase().includes(q)||subLabel(t.area,t.sub).toLowerCase().includes(q));if(f!=='all')a=a.filter(t=>t.type===f);a.sort((x,y)=>String(x.nextDue||'9999-12-31').localeCompare(String(y.nextDue||'9999-12-31')));c.innerHTML=`<div class="panel"><h2>📋 所有任务</h2><div class="toolbar"><input data-role="search" value="${esc(q)}" placeholder="搜索任务"><select data-role="filter"><option value="all">全部类型</option>${db.settings.types.map(x=>`<option value="${x.id}" ${f===x.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button type="button" class="btn primary" data-cmd="task-add">＋ 添加</button></div><div class="task-list">${a.map(card).join('')||'<div class="empty">没有找到任务</div>'}</div></div>`}
+function renderMaintenance(c){const a=db.tasks.filter(t=>t.enabled&&t.type==='maintenance').sort((x,y)=>String(x.nextDue||'9999-12-31').localeCompare(String(y.nextDue||'9999-12-31')));c.innerHTML=`<div class="panel"><h2>🔧 房屋维护</h2><div class="task-list">${a.map(card).join('')||'<div class="empty">暂无维护任务</div>'}</div></div>`}
 function renderCalendar(c){
  const d=today(),y=d.getFullYear(),m=d.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);let days=[];for(let i=0;i<first.getDay();i++)days.push(null);for(let i=1;i<=last.getDate();i++)days.push(i);let rows='';
  for(let i=0;i<Math.ceil(days.length/7);i++){const row=days.slice(i*7,i*7+7);rows+='<tr>'+row.map(n=>{if(!n)return '<td style="height:72px"></td>';const ls=db.tasks.filter(t=>t.enabled&&parseISO(t.nextDue).getFullYear()===y&&parseISO(t.nextDue).getMonth()===m&&parseISO(t.nextDue).getDate()===n).slice(0,4);return `<td style="height:72px;padding:7px;border:1px solid var(--line);vertical-align:top"><b>${n}</b>${ls.map(t=>`<div style="font-size:11px;margin-top:4px">• ${esc(t.name)}</div>`).join('')}</td>`}).join('')+'</tr>'}
@@ -379,7 +392,7 @@ function renderHistory(c){
    if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
  });
  let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
- a.sort((x,y)=>y.date.localeCompare(x.date));const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${(Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))?`<div class="before-after-history"><div><strong>Before</strong>${photoHTML(h.beforePhotos||[],true,'before')}</div><div><strong>After</strong>${photoHTML(h.afterPhotos||h.photos||[],true,'after')}</div><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">前后对比</button></div>`:''}</td><td><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ a.sort((x,y)=>y.date.localeCompare(x.date));const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${(Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))?`<div class="before-after-history"><div><strong>Before</strong>${photoHTML(h.beforePhotos||[],true,'before')}</div><div><strong>After</strong>${photoHTML(h.afterPhotos||h.photos||[],true,'after')}</div><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">前后对比</button></div>`:''}</td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -527,6 +540,39 @@ function comparePhotosModal(h){
  modal('Before / After 对比',`<div class="compare-wrap">${pair.join('')}</div>`)
 }
 
+
+function findHistoryRecord(taskId,historyId,archived){
+ if(archived)return (db.archivedHistory||[]).find(x=>x.id===historyId)||null;
+ const t=db.tasks.find(x=>x.id===taskId);return t?(t.history||[]).find(x=>x.id===historyId)||null:null;
+}
+function historyPhotoPreview(photos,kind){
+ const arr=Array.isArray(photos)?photos:[];if(!arr.length)return '<div class="empty" style="padding:8px">暂无照片</div>';
+ return '<div class="photo-mini-grid">'+arr.map((x,i)=>`<div class="photo-card"><img src="${x.data}" alt="${kind==='before'?'Before':'After'} ${i+1}"><button type="button" class="btn danger small" data-cmd="history-photo-delete" data-kind="${kind}" data-index="${i}">删除</button></div>`).join('')+'</div>';
+}
+function historyPhotoEditor(taskId,historyId,archived){
+ const h=findHistoryRecord(taskId,historyId,archived);if(!h){toast('找不到历史记录');return}
+ window.pendingHistoryPhoto={taskId,historyId,archived,beforePhotos:clone(h.beforePhotos||[]),afterPhotos:clone(h.afterPhotos||h.photos||[])};
+ const picker=(kind,label)=>`<div class="photo-section"><div class="section-title"><strong>${label}</strong><span class="meta">可添加多张</span></div><label class="btn small photo-pick" style="display:inline-flex;align-items:center;justify-content:center;width:100%;margin:0;cursor:pointer">📷 选择照片或拍照<input id="history-${kind}-input" type="file" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0"></label><div id="history-${kind}-preview">${historyPhotoPreview(window.pendingHistoryPhoto[kind+'Photos'],kind)}</div></div>`;
+ modal('编辑历史照片',`<div class="notice"><strong>${esc(h.task||'历史记录')}</strong><br>${esc(h.date||'')}</div><div class="history-photo-editor">${picker('before','Before：开始前照片')}${picker('after','After：完成后照片')}</div><div class="history-photo-actions"><button type="button" class="btn primary" data-cmd="history-photo-save">保存照片</button><button type="button" class="btn" data-cmd="modal-close">取消</button></div>`);
+}
+async function saveHistoryPhotos(){
+ const s=window.pendingHistoryPhoto;if(!s)return;
+ if((window.historyPhotoProcessing||0)>0){toast('照片仍在处理中，请稍候');return}
+ const h=findHistoryRecord(s.taskId,s.historyId,s.archived);if(!h)return;
+ const snapshot=clone(db);
+ h.beforePhotos=clone(s.beforePhotos||[]);h.afterPhotos=clone(s.afterPhotos||[]);delete h.photos;
+ if(!save()){db=snapshot;return}
+ try{await idbDeleteHistoryPhotos(h.id);await persistHistoryPhotos(h);window.pendingHistoryPhoto=null;closeModal();render();toast('历史照片已更新')}
+ catch(e){db=snapshot;save();toast('照片保存失败，未完成更新')}
+}
+async function handleHistoryPhotoFiles(kind,files){
+ const s=window.pendingHistoryPhoto;if(!s)return;const fs=Array.from(files||[]);if(!fs.length)return;
+ window.historyPhotoProcessing=(window.historyPhotoProcessing||0)+fs.length;
+ try{const xs=await Promise.all(fs.map(compressPhoto));const key=kind==='before'?'beforePhotos':'afterPhotos';s[key]=(s[key]||[]).concat(xs.map(data=>({data})));const p=document.getElementById('history-'+kind+'-preview');if(p)p.innerHTML=historyPhotoPreview(s[key],kind)}
+ catch(e){toast('照片处理失败')}
+ finally{window.historyPhotoProcessing=Math.max(0,(window.historyPhotoProcessing||0)-fs.length)}
+}
+
 function deleteHistory(taskId,historyId,archived){
  if(!confirm('确定删除这条历史记录吗？'))return;
  if(archived==='1'){
@@ -577,6 +623,9 @@ document.addEventListener('click',function(e){
   const a=c.dataset.cmd,id=c.dataset.id;
   if(a==='photo-view'){const src=c.dataset.src;if(src)modal('照片',`<img src="${src}" style="display:block;max-width:100%;max-height:75vh;margin:auto;border-radius:10px">`);return}
    if(a==='photo-delete'){const k=c.dataset.kind||'after',arr=k==='before'?window.pendingBeforePhotos:window.pendingAfterPhotos;if(Array.isArray(arr)){arr.splice(Number(c.dataset.index),1);const p=document.getElementById(k+'PhotoPreview');if(p)p.innerHTML=photoHTML(arr,false,k)}return}
+   if(a==='history-photo-edit'){historyPhotoEditor(c.dataset.task,c.dataset.history,c.dataset.archived==='1');return}
+   if(a==='history-photo-delete'){const s=window.pendingHistoryPhoto;if(s){const k=c.dataset.kind==='before'?'beforePhotos':'afterPhotos';(s[k]||[]).splice(Number(c.dataset.index),1);const p=document.getElementById('history-'+c.dataset.kind+'-preview');if(p)p.innerHTML=historyPhotoPreview(s[k],c.dataset.kind)}return}
+   if(a==='history-photo-save'){saveHistoryPhotos();return}
    if(a==='photo-compare'){const taskId=c.dataset.task,historyId=c.dataset.history,archived=c.dataset.archived==='1';let h=null;if(archived)h=(db.archivedHistory||[]).find(x=>x.id===historyId);else{const t=db.tasks.find(x=>x.id===taskId);if(t)h=(t.history||[]).find(x=>x.id===historyId)}if(h)comparePhotosModal(h);return}
    if(a==='task-add')taskEditor();else if(a==='task-edit')taskEditor(id);else if(a==='task-complete')completeModal(id);else if(a==='task-delete')deleteTaskConfirm(id);else if(a==='task-delete-confirm'){
  const t=db.tasks.find(x=>x.id===id);
@@ -612,7 +661,9 @@ document.addEventListener('input',e=>{
   },0);
  }
 });
-document.addEventListener('change',e=>{if(e.target.id==='beforePhotos'||e.target.id==='afterPhotos'){
+document.addEventListener('change',e=>{
+ if(e.target.id==='history-before-input'||e.target.id==='history-after-input'){const kind=e.target.id==='history-before-input'?'before':'after';handleHistoryPhotoFiles(kind,e.target.files||[]);e.target.value='';return}
+ if(e.target.id==='beforePhotos'||e.target.id==='afterPhotos'){
  const kind=e.target.id==='beforePhotos'?'before':'after',fs=Array.from(e.target.files||[]);if(!fs.length)return;
  window.photoProcessing=(window.photoProcessing||0)+fs.length;
  Promise.all(fs.map(compressPhoto)).then(xs=>{const key=kind==='before'?'pendingBeforePhotos':'pendingAfterPhotos';window[key]=(window[key]||[]).concat(xs.map(data=>({data})));const p=document.getElementById(kind+'PhotoPreview');if(p)p.innerHTML=photoHTML(window[key],false,kind)})
