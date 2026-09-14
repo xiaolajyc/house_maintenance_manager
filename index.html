@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>房屋维护管理 V25</title>
+<title>房屋维护管理 V26</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -35,7 +35,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .history-table tr{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}
 .history-table td{padding:7px 8px!important;border:0!important;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word}
 .history-table td::before{display:inline-block;font-weight:700;color:var(--muted);margin-right:6px}
-.history-table td:nth-child(1)::before{content:"日期："}
+.history-table td:nth-child(1)::before{content:"完成日期 / 时间："}
 .history-table td:nth-child(2)::before{content:"任务："}
 .history-table td:nth-child(3)::before{content:"状态："}
 .history-table td:nth-child(4)::before{content:"花费："}
@@ -192,6 +192,10 @@ footer{color:#8a9ba8;padding-top:16px}
 .photo-mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
 .photo-mini-grid img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px}
 @media(max-width:560px){.photo-mini-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+.history-time{margin-top:3px;font-size:12px;color:#4f7b99;font-weight:600}
+.history-time.muted{color:#9aabb7;font-weight:400}
 
 </style>
 
@@ -381,6 +385,31 @@ function checklistSummary(h){
  const done=r.filter(x=>x.done).length;
  return '<div style=\"margin-top:6px;font-size:12px\"><strong>小项：'+done+'/'+r.length+'</strong><div style=\"margin-top:4px\">'+r.map(x=>(x.done?'☑️ ':'☐ ')+esc(x.text)).join('<br>')+'</div></div>';
 }
+
+function completionTime(h){
+  if(h.completedAt)return String(h.completedAt);
+  // Older records do not have an explicit completion timestamp.
+  // Keep their existing order as the fallback rather than inventing a time.
+  return '';
+}
+function formatCompletedAt(h){
+  if(!h.completedAt)return '';
+  const d=new Date(h.completedAt);
+  if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+function historySort(a,b){
+  const d=String(b.date||'').localeCompare(String(a.date||''));
+  if(d)return d;
+  const tb=completionTime(b),ta=completionTime(a);
+  if(tb||ta){
+    if(tb&&!ta)return -1;
+    if(!tb&&ta)return 1;
+    const t=tb.localeCompare(ta);
+    if(t)return -t;
+  }
+  return 0;
+}
 function renderHistory(c){
  const all=[];
  db.tasks.forEach(t=>(t.history||[]).forEach(h=>all.push({task:t.name,taskId:t.id,...h,archived:false})));
@@ -392,7 +421,7 @@ function renderHistory(c){
    if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
  });
  let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
- a.sort((x,y)=>y.date.localeCompare(x.date));const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">日期</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td>${esc(h.date)}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${(Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))?`<div class="before-after-history"><div><strong>Before</strong>${photoHTML(h.beforePhotos||[],true,'before')}</div><div><strong>After</strong>${photoHTML(h.afterPhotos||h.photos||[],true,'after')}</div><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">前后对比</button></div>`:''}</td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ a.sort(historySort);const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">完成日期 / 时间</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td><div>${esc(h.date)}</div>${formatCompletedAt(h)?`<div class="history-time">完成 ${esc(formatCompletedAt(h))}</div>`:'<div class="history-time muted">完成时间未记录</div>'}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${(Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))?`<div class="before-after-history"><div><strong>Before</strong>${photoHTML(h.beforePhotos||[],true,'before')}</div><div><strong>After</strong>${photoHTML(h.afterPhotos||h.photos||[],true,'after')}</div><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">前后对比</button></div>`:''}</td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -525,7 +554,7 @@ async function saveComplete(id,force){
  const t=db.tasks.find(x=>x.id===id);if(!t)return;
  const snapshot=clone(db);
  t.lastCompleted=state.date;t.nextDue=iso(addPeriod(parseISO(state.date),t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));
- t.history.unshift({id:uid('hist'),date:state.date,condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
+ t.history.unshift({id:uid('hist'),date:state.date,completedAt:new Date().toISOString(),condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
  if(!save()){db=snapshot;return}
  const savedHistory=t.history[0];
  try{await persistHistoryPhotos(savedHistory)}
