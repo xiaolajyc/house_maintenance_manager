@@ -22,7 +22,7 @@ h1{font-size:23px;margin:0}.subtitle{color:var(--muted);font-size:13px;margin-to
 .notice{background:#f8fafc;border:1px solid var(--line);padding:11px;border-radius:10px;font-size:13px;color:var(--muted)}.sub-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eef0f3}.sub-row:last-child{border-bottom:0}
 .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.46);align-items:center;justify-content:center;padding:16px;z-index:100}.modal.show{display:flex}.modal-box{background:#fff;width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:16px;padding:18px}.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.modal-head h3{margin:0;font-size:18px}.close{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px}
 
-.drive-progress{position:fixed;left:50%;top:18px;transform:translateX(-50%);width:min(520px,calc(100vw - 28px));background:rgba(255,255,255,.97);border:1px solid #dce8ef;border-radius:16px;padding:13px 15px;box-shadow:0 12px 35px rgba(24,54,78,.18);z-index:300;display:none;backdrop-filter:blur(10px)}
+.drive-progress{width:100%;box-sizing:border-box;background:#f7fbfe;border:1px solid #dce8ef;border-radius:14px;padding:13px 15px;margin-top:14px;display:none}
 .drive-progress.show{display:block}
 .drive-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;color:#193a53;font-size:14px}
 .drive-progress-detail{margin-top:4px;color:#7890a2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -30,7 +30,7 @@ h1{font-size:23px;margin:0}.subtitle{color:var(--muted);font-size:13px;margin-to
 .drive-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#2d9bea,#0f75c2);border-radius:999px;transition:width .18s ease}
 .drive-progress.indeterminate .drive-progress-bar{width:42%;animation:driveProgressInd 1.05s ease-in-out infinite}
 @keyframes driveProgressInd{0%{transform:translateX(-115%)}100%{transform:translateX(260%)}}
-@media(max-width:720px){.drive-progress{top:12px;border-radius:14px;padding:12px}}
+
 
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;border-radius:10px;padding:10px 14px;display:none;z-index:200}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
@@ -255,17 +255,13 @@ footer{color:#8a9ba8;padding-top:16px}
  </div>
 </div>
 <div id="toast" class="toast"></div>
-<div id="driveProgress" class="drive-progress" aria-live="polite">
-  <div class="drive-progress-head"><span id="driveProgressTitle">Google Drive 同步</span><span id="driveProgressPercent">0%</span></div>
-  <div id="driveProgressDetail" class="drive-progress-detail">准备中…</div>
-  <div class="drive-progress-track"><div id="driveProgressBar" class="drive-progress-bar"></div></div>
-</div>
+
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V41';
+const APP_VERSION='V42';
 const DRIVE_CLIENT_ID='801960562511-6ek5qhmjk5ubg1qo84g4r6sqhvv1u1pk.apps.googleusercontent.com';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME='house-maintenance-sync-v1.json';
@@ -727,7 +723,11 @@ function renderSettings(c){
  <div class="section"><div class="section-title"><h2>任务类型</h2><button type="button" class="btn primary small" data-settings="type-add">＋ 新增类型</button></div><div class="task-list">${db.settings.types.map(x=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(x.label)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="type-edit" data-id="${x.id}">编辑</button><button type="button" class="btn danger small" data-settings="type-delete" data-id="${x.id}">删除</button></div></div></div>`).join('')}</div></div>
  <div class="section"><div class="section-title"><h2>区域</h2><button type="button" class="btn primary small" data-settings="area-add">＋ 新增区域</button></div><div class="task-list">${db.settings.areas.map(a=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(a.label)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="area-edit" data-id="${a.id}">编辑区域</button><button type="button" class="btn danger small" data-settings="area-delete" data-id="${a.id}">删除区域</button></div></div><div class="actions"><button type="button" class="btn small" data-settings="sub-add" data-area="${a.id}">＋ 新增子区域</button></div>${(a.subs||[]).map(s=>`<div class="sub-row"><span>${esc(s.label)}</span><span class="actions" style="margin:0"><button type="button" class="btn small" data-settings="sub-edit" data-area="${a.id}" data-id="${s.id}">编辑</button><button type="button" class="btn danger small" data-settings="sub-delete" data-area="${a.id}" data-id="${s.id}">删除</button></span></div>`).join('')}</div>`).join('')}</div></div>
  <div class="section"><h2>每日开始时间</h2><div class="notice">当前设置：每天 ${DAY_START_HOUR}:00 开始新的一天。该设置用于判断每日/周期任务属于哪一天；例如凌晨 5–6 点完成任务，仍计入前一天。</div></div>
- <div class="section"><h2>Google Drive 云同步</h2><div id="driveStatus" class="notice">${esc(driveStatusText())}</div><div class="actions"><button type="button" class="btn primary" data-drive="connect">连接 Google Drive</button><button type="button" class="btn" data-drive="disconnect">断开</button></div><div class="actions" style="margin-top:10px"><button type="button" class="btn primary" data-drive="sync">☁️ 上传/同步</button><button type="button" class="btn" data-drive="restore">⬇️ 从云端恢复</button></div><label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="driveAuto" type="checkbox" ${driveMeta().auto!==false?'checked':''} data-drive-auto style="width:18px;height:18px"> 数据修改后自动同步</label><div class="notice" style="margin-top:10px">云端文件：${DRIVE_FILE_NAME}<br>使用 ${DRIVE_SCOPE}，只访问此应用创建/使用的 Drive 文件。首次连接请在 Google 授权窗口中允许访问。</div></div>
+ <div class="section"><h2>Google Drive 云同步</h2><div id="driveStatus" class="notice">${esc(driveStatusText())}</div><div class="actions"><button type="button" class="btn primary" data-drive="connect">连接 Google Drive</button><button type="button" class="btn" data-drive="disconnect">断开</button></div><div class="actions" style="margin-top:10px"><button type="button" class="btn primary" data-drive="sync">☁️ 上传/同步</button><button type="button" class="btn" data-drive="restore">⬇️ 从云端恢复</button></div><label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="driveAuto" type="checkbox" ${driveMeta().auto!==false?'checked':''} data-drive-auto style="width:18px;height:18px"> 数据修改后自动同步</label><div class="notice" style="margin-top:10px">云端文件：${DRIVE_FILE_NAME}<br>使用 ${DRIVE_SCOPE}，只访问此应用创建/使用的 Drive 文件。首次连接请在 Google 授权窗口中允许访问。</div></div><div id="driveProgress" class="drive-progress" aria-live="polite">
+  <div class="drive-progress-head"><span id="driveProgressTitle">Google Drive 同步</span><span id="driveProgressPercent">0%</span></div>
+  <div id="driveProgressDetail" class="drive-progress-detail">准备中…</div>
+  <div class="drive-progress-track"><div id="driveProgressBar" class="drive-progress-bar"></div></div>
+</div>
  <div class="section"><h2>数据</h2><div class="actions"><button type="button" class="btn primary" data-cmd="export">💾 导出 JSON</button><button type="button" class="btn" data-cmd="import">📥 导入 JSON</button><input id="fileInput" type="file" accept=".json" hidden><button type="button" class="btn danger" data-cmd="reset">恢复初始数据</button></div><div class="notice" style="margin-top:10px">分类管理完全独立于任务管理。修改名称不会影响已有任务；删除被使用的分类时，相关任务会自动移动到其他可用分类。</div></div>
  <div class="section"><h2>版本信息</h2><div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:12px"><span>房屋维护管理 · PWA</span><strong>${APP_VERSION}</strong></div></div>
  </div>`
