@@ -21,6 +21,17 @@ h1{font-size:23px;margin:0}.subtitle{color:var(--muted);font-size:13px;margin-to
 .form{display:grid;gap:11px}.form label{display:grid;gap:5px;font-size:12px;color:var(--muted)}.form input,.form select,.form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text)}.form textarea{min-height:90px;resize:vertical}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .notice{background:#f8fafc;border:1px solid var(--line);padding:11px;border-radius:10px;font-size:13px;color:var(--muted)}.sub-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eef0f3}.sub-row:last-child{border-bottom:0}
 .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.46);align-items:center;justify-content:center;padding:16px;z-index:100}.modal.show{display:flex}.modal-box{background:#fff;width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:16px;padding:18px}.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.modal-head h3{margin:0;font-size:18px}.close{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px}
+
+.drive-progress{position:fixed;left:50%;top:18px;transform:translateX(-50%);width:min(520px,calc(100vw - 28px));background:rgba(255,255,255,.97);border:1px solid #dce8ef;border-radius:16px;padding:13px 15px;box-shadow:0 12px 35px rgba(24,54,78,.18);z-index:300;display:none;backdrop-filter:blur(10px)}
+.drive-progress.show{display:block}
+.drive-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;color:#193a53;font-size:14px}
+.drive-progress-detail{margin-top:4px;color:#7890a2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drive-progress-track{height:8px;background:#eaf1f5;border-radius:999px;overflow:hidden;margin-top:10px}
+.drive-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#2d9bea,#0f75c2);border-radius:999px;transition:width .18s ease}
+.drive-progress.indeterminate .drive-progress-bar{width:42%;animation:driveProgressInd 1.05s ease-in-out infinite}
+@keyframes driveProgressInd{0%{transform:translateX(-115%)}100%{transform:translateX(260%)}}
+@media(max-width:720px){.drive-progress{top:12px;border-radius:14px;padding:12px}}
+
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;border-radius:10px;padding:10px 14px;display:none;z-index:200}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 .checklist-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}
@@ -244,12 +255,17 @@ footer{color:#8a9ba8;padding-top:16px}
  </div>
 </div>
 <div id="toast" class="toast"></div>
+<div id="driveProgress" class="drive-progress" aria-live="polite">
+  <div class="drive-progress-head"><span id="driveProgressTitle">Google Drive 同步</span><span id="driveProgressPercent">0%</span></div>
+  <div id="driveProgressDetail" class="drive-progress-detail">准备中…</div>
+  <div class="drive-progress-track"><div id="driveProgressBar" class="drive-progress-bar"></div></div>
+</div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V39';
+const APP_VERSION='V41';
 const DRIVE_CLIENT_ID='801960562511-6ek5qhmjk5ubg1qo84g4r6sqhvv1u1pk.apps.googleusercontent.com';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME='house-maintenance-sync-v1.json';
@@ -395,16 +411,51 @@ function getDriveToken(interactive=false){
   const run=()=>{
    if(!ensureDriveClient()){
     if(waited<10000){waited+=250;setTimeout(run,250);return}
-    reject(new Error('Google Identity Services 尚未加载'));return;
+    driveTokenPromise=null;reject(new Error('Google Identity Services 尚未加载'));return;
    }
    driveTokenClient.callback=(r)=>{
     driveTokenPromise=null;
-    if(r&&r.access_token){driveAccessToken=r.access_token;driveTokenExpiresAt=Date.now()+(Number(r.expires_in)||3600)*1000;resolve(driveAccessToken)}
-    else reject(new Error(r?.error||'Google 授权失败'));
+    if(r&&r.access_token){
+      driveAccessToken=r.access_token;
+      driveTokenExpiresAt=Date.now()+(Number(r.expires_in)||3600)*1000;
+      resolve(driveAccessToken);
+    } else {
+      const err=new Error(r?.error||'Google 授权失败');
+      err.googleError=r?.error||'';
+      reject(err);
+    }
    };
-   try{driveTokenClient.requestAccessToken({prompt:interactive?'consent':''})}catch(e){driveTokenPromise=null;reject(e)}
+   try{
+    // 空 prompt 优先复用已有授权，不主动弹“选择 Google 账号”。
+    // 只有在确实没有授权/授权失效时，才由调用方显式要求 interactive。
+    driveTokenClient.requestAccessToken({prompt:''});
+   }catch(e){driveTokenPromise=null;reject(e)}
   };
   run();
+ });
+ return driveTokenPromise;
+}
+async function ensureDriveAuthorization(){
+ try{return await getDriveToken(false)}
+ catch(e){
+  // 仅在静默授权无法完成时才弹一次授权窗口；正常的再次同步不会反复选择账号。
+  if(e?.googleError==='interaction_required'||e?.googleError==='login_required'||e?.googleError==='consent_required'){
+   return await getDriveToken(true);
+  }
+  throw e;
+ }
+}
+async function getDriveTokenInteractive(){
+ if(driveAccessToken && Date.now()<driveTokenExpiresAt-60000)return driveAccessToken;
+ if(!ensureDriveClient())throw new Error('Google Identity Services 尚未加载');
+ if(driveTokenPromise)return driveTokenPromise;
+ driveTokenPromise=new Promise((resolve,reject)=>{
+  driveTokenClient.callback=(r)=>{
+   driveTokenPromise=null;
+   if(r&&r.access_token){driveAccessToken=r.access_token;driveTokenExpiresAt=Date.now()+(Number(r.expires_in)||3600)*1000;resolve(driveAccessToken)}
+   else {const err=new Error(r?.error||'Google 授权失败');err.googleError=r?.error||'';reject(err)}
+  };
+  try{driveTokenClient.requestAccessToken({prompt:'consent'})}catch(e){driveTokenPromise=null;reject(e)}
  });
  return driveTokenPromise;
 }
@@ -418,7 +469,7 @@ async function driveFetch(url,opts={},retry=true){
 }
 async function connectDrive(){
  try{
-  await getDriveToken(true);
+  await ensureDriveAuthorization();
   const m=driveMeta(); setDriveMeta({authorized:true});
   toast('Google Drive 已连接'); updateDriveStatus();
   if(m.fileId)toast('已连接；可选择“从云端恢复”加载云端数据');
@@ -429,42 +480,158 @@ async function findDriveFile(){
  const r=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&orderBy=modifiedTime%20desc&pageSize=10&fields=files(id,name,modifiedTime,size)`);
  const j=await r.json(); return (j.files||[])[0]||null;
 }
+function driveProgress(show,percent=0,detail=''){
+ const box=document.getElementById('driveProgress');
+ const bar=document.getElementById('driveProgressBar');
+ const pct=document.getElementById('driveProgressPercent');
+ const title=document.getElementById('driveProgressTitle');
+ const text=document.getElementById('driveProgressDetail');
+ if(!box)return;
+ if(!show){box.classList.remove('show','indeterminate');return}
+ box.classList.add('show');
+ if(title)title.textContent='Google Drive 同步';
+ if(bar)bar.style.width=Math.max(0,Math.min(100,percent))+'%';
+ if(pct)pct.textContent=Math.round(Math.max(0,Math.min(100,percent)))+'%';
+ if(text)text.textContent=detail;
+}
+function driveProgressIndeterminate(detail='处理中…'){
+ const box=document.getElementById('driveProgress');
+ const text=document.getElementById('driveProgressDetail');
+ const pct=document.getElementById('driveProgressPercent');
+ if(!box)return;
+ box.classList.add('show','indeterminate');
+ if(pct)pct.textContent='…';
+ if(text)text.textContent=detail;
+}
+function driveXhr(url,opts={},onProgress){
+ return new Promise(async(resolve,reject)=>{
+  try{
+   const token=await getDriveToken(false);
+   const xhr=new XMLHttpRequest();
+   xhr.open(opts.method||'GET',url,true);
+   const headers=opts.headers||{};
+   Object.keys(headers).forEach(k=>xhr.setRequestHeader(k,headers[k]));
+   xhr.setRequestHeader('Authorization',`Bearer ${token}`);
+   xhr.upload.onprogress=e=>{
+    if(e.lengthComputable&&onProgress)onProgress(e.loaded/e.total);
+   };
+   xhr.onprogress=e=>{
+    if(e.lengthComputable&&onProgress)onProgress(e.loaded/e.total);
+   };
+   xhr.onload=()=>{
+    if(xhr.status===401){
+     driveAccessToken='';driveTokenExpiresAt=0;
+     reject(Object.assign(new Error('Drive 401'),{retryable401:true}));
+     return;
+    }
+    if(xhr.status<200||xhr.status>=300){
+     reject(new Error(`Drive ${xhr.status}: ${xhr.responseText||xhr.statusText}`));return;
+    }
+    resolve(xhr);
+   };
+   xhr.onerror=()=>reject(new Error('网络连接失败'));
+   xhr.onabort=()=>reject(new Error('同步已取消'));
+   xhr.send(opts.body||null);
+  }catch(e){reject(e)}
+ });
+}
 async function makeDrivePayload(){
- const x=clone(db); const jobs=[];
- const all=[];x.tasks.forEach(t=>(t.history||[]).forEach(h=>all.push(h)));(x.archivedHistory||[]).forEach(h=>all.push(h));
- all.forEach(h=>jobs.push((async()=>{const [b,a]=await Promise.all([idbGetPhotos(h.id,'before'),idbGetPhotos(h.id,'after')]);if(b.length)h.beforePhotos=b.map(v=>({data:v.data}));if(a.length)h.afterPhotos=a.map(v=>({data:v.data}));})()));
- await Promise.all(jobs);
- return {schema:'house-maintenance-sync-v1',app:'house-maintenance-manager',version:APP_VERSION,updatedAt:new Date().toISOString(),data:x};
+ const x=clone(db);
+ const all=[];
+ x.tasks.forEach(t=>(t.history||[]).forEach(h=>all.push(h)));
+ (x.archivedHistory||[]).forEach(h=>all.push(h));
+ const total=all.length;
+ driveProgress(true, total?3:8, total?`正在准备照片数据（0/${total}）`:'正在准备同步数据…');
+ for(let i=0;i<all.length;i++){
+  const h=all[i];
+  const [b,a]=await Promise.all([idbGetPhotos(h.id,'before'),idbGetPhotos(h.id,'after')]);
+  if(b.length)h.beforePhotos=b.map(v=>({data:v.data}));
+  if(a.length)h.afterPhotos=a.map(v=>({data:v.data}));
+  driveProgress(true, 5 + Math.round(((i+1)/total)*25), `正在准备照片数据（${i+1}/${total}）`);
+ }
+ driveProgress(true,30,'正在生成同步文件…');
+ const result={schema:'house-maintenance-sync-v1',app:'house-maintenance-manager',version:APP_VERSION,updatedAt:new Date().toISOString(),data:x};
+ return result;
 }
 function multipartBody(metadata,blob,boundary){return new Blob([`--${boundary}\r\n`,`Content-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify(metadata),`\r\n--${boundary}\r\n`,`Content-Type: application/json\r\n\r\n`,blob,`\r\n--${boundary}--`])}
 async function uploadDrivePayload(mode='manual'){
  if(driveBusy)return;
  driveBusy=true;
  try{
-  await getDriveToken(mode==='manual');
-  const payload=await makeDrivePayload(); const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}); const boundary='----HouseMaintenanceDrive'+Date.now().toString(36);
+  await ensureDriveAuthorization();
+  const payload=await makeDrivePayload();
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  const boundary='----HouseMaintenanceDrive'+Date.now().toString(36);
   let fileId=driveMeta().fileId;
-  if(!fileId){const f=await findDriveFile();if(f){fileId=f.id;setDriveMeta({fileId:f.id})}}
+  if(!fileId){driveProgressIndeterminate('正在查找云端同步文件…');const f=await findDriveFile();if(f){fileId=f.id;setDriveMeta({fileId:f.id})}}
   const body=multipartBody({name:DRIVE_FILE_NAME,mimeType:'application/json'},blob,boundary);
-  let r;
-  if(fileId){r=await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=id,name,modifiedTime`,{method:'PATCH',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body})}
-  else{r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime',{method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body});}
-  const f=await r.json();setDriveMeta({fileId:f.id,lastSync:new Date().toISOString(),authorized:true});updateDriveStatus();toast(mode==='auto'?'已自动同步到 Google Drive':'已上传/同步到 Google Drive');
- }catch(e){console.error('Drive upload failed',e);if(mode==='manual')toast('同步失败：请检查 Google Drive 授权和网络');}
- finally{driveBusy=false}
+  const url=fileId
+   ?`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=id,name,modifiedTime`
+   :`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime`;
+  driveProgress(true,32,`正在上传同步文件（${(body.size/1024/1024).toFixed(1)} MB）`);
+  let xhr;
+  try{
+   xhr=await driveXhr(url,{method:fileId?'PATCH':'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body},
+    p=>driveProgress(true,32+Math.round(p*66),`正在上传同步文件（${Math.round(p*100)}%）`));
+  }catch(e){
+   if(e?.retryable401){
+    await ensureDriveAuthorization();
+    xhr=await driveXhr(url,{method:fileId?'PATCH':'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body},
+      p=>driveProgress(true,32+Math.round(p*66),`正在上传同步文件（${Math.round(p*100)}%）`));
+   }else throw e;
+  }
+  const f=JSON.parse(xhr.responseText||'{}');
+  driveProgress(true,100,'同步完成，正在保存状态…');
+  setDriveMeta({fileId:f.id,lastSync:new Date().toISOString(),authorized:true});
+  updateDriveStatus();
+  toast(mode==='auto'?'已自动同步到 Google Drive':'已上传/同步到 Google Drive');
+ }catch(e){
+  console.error('Drive upload failed',e);
+  if(mode==='manual')toast('同步失败：请检查 Google Drive 授权和网络');
+ }finally{
+  driveBusy=false;
+  setTimeout(()=>driveProgress(false),450);
+ }
 }
 async function restoreFromDrive(){
  if(driveBusy)return;driveBusy=true;
  try{
-  await getDriveToken(true); let fileId=driveMeta().fileId; if(!fileId){const f=await findDriveFile();if(f){fileId=f.id;setDriveMeta({fileId:f.id})}}
+  await ensureDriveAuthorization();
+  let fileId=driveMeta().fileId;
+  if(!fileId){driveProgressIndeterminate('正在查找云端同步文件…');const f=await findDriveFile();if(f){fileId=f.id;setDriveMeta({fileId:f.id})}}
   if(!fileId){toast('云端还没有房屋维护数据');return}
-  const r=await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`); const payload=await r.json();
-  const incoming=normalize(payload?.data||payload); const snapshot=clone(db); suppressDriveAutoSync=true;db=incoming;
+  driveProgressIndeterminate('正在从 Google Drive 下载数据…');
+  let xhr;
+  const url=`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
+  try{
+   xhr=await driveXhr(url,{method:'GET'},p=>driveProgress(true,Math.round(p*72),`正在下载云端数据（${Math.round(p*100)}%）`));
+  }catch(e){
+   if(e?.retryable401){
+    await ensureDriveAuthorization();
+    xhr=await driveXhr(url,{method:'GET'},p=>driveProgress(true,Math.round(p*72),`正在下载云端数据（${Math.round(p*100)}%）`));
+   }else throw e;
+  }
+  driveProgress(true,76,'下载完成，正在解析数据…');
+  const payload=JSON.parse(xhr.responseText||'{}');
+  const incoming=normalize(payload?.data||payload);
+  const snapshot=clone(db);
+  suppressDriveAutoSync=true;db=incoming;
+  driveProgress(true,82,'正在保存任务、历史和设置…');
   if(!save()){db=snapshot;return}
+  driveProgress(true,90,'正在恢复照片…');
   try{await persistAllInlinePhotos(db)}catch(e){toast('数据已恢复，但部分照片写入本机照片库失败')}
-  await hydrateAllPhotos();setDriveMeta({fileId,lastSync:new Date().toISOString(),authorized:true});updateDriveStatus();toast('已从 Google Drive 恢复');
- }catch(e){console.error('Drive restore failed',e);toast('云端恢复失败，请检查授权和网络')}
- finally{suppressDriveAutoSync=false;driveBusy=false}
+  await hydrateAllPhotos();
+  driveProgress(true,97,'正在刷新界面…');
+  setDriveMeta({fileId,lastSync:new Date().toISOString(),authorized:true});
+  updateDriveStatus();render();
+  toast('已从 Google Drive 恢复');
+ }catch(e){
+  console.error('Drive restore failed',e);
+  toast('云端恢复失败，请检查授权和网络');
+ }finally{
+  suppressDriveAutoSync=false;driveBusy=false;
+  setTimeout(()=>driveProgress(false),450);
+ }
 }
 async function disconnectDrive(){
  const t=driveAccessToken;driveAccessToken='';driveTokenExpiresAt=0;driveTokenClient=null;clearTimeout(driveAutoTimer);clearDriveMeta();
