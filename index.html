@@ -258,15 +258,53 @@ footer{color:#8a9ba8;padding-top:16px}
 
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB2_X0ApRALNeS5gO_i8fD89tP7Q2nvpfI",
+  authDomain: "house-maintenance-18443.firebaseapp.com",
+  projectId: "house-maintenance-18443",
+  storageBucket: "house-maintenance-18443.firebasestorage.app",
+  messagingSenderId: "498836790080",
+  appId: "1:498836790080:web:35426bc08318489f62b8a5"
+};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app), provider=new GoogleAuthProvider(), firestore=getFirestore(app), storage=getStorage(app);
+try{await setPersistence(auth,browserLocalPersistence)}catch(_){}
+window.HM_FIREBASE={app,auth,provider,firestore,storage,signInWithPopup,signOut,onAuthStateChanged,doc,getDoc,setDoc,onSnapshot,ref,uploadBytes,getDownloadURL};
+window.dispatchEvent(new CustomEvent('hm-firebase-ready'));
+</script>
+
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V42';
+const APP_VERSION='V43';
 const DRIVE_CLIENT_ID='801960562511-6ek5qhmjk5ubg1qo84g4r6sqhvv1u1pk.apps.googleusercontent.com';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME='house-maintenance-sync-v1.json';
 const DRIVE_META_KEY='houseMaintenanceDriveSync_v1';
 let driveTokenClient=null; let driveAccessToken=''; let driveTokenExpiresAt=0; let driveTokenPromise=null; let driveAutoTimer=null; let driveBusy=false; let suppressDriveAutoSync=false;
+let firebaseUser=null,firebaseUnsubscribe=null,firebaseReady=false,suppressFirebaseSync=false,firebaseSyncTimer=null,firebaseBusy=false;
+function firebaseStatusText(){if(!firebaseReady)return'Firebase 正在初始化…';if(!firebaseUser)return'未登录 Firebase';return`已登录：${firebaseUser.displayName||firebaseUser.email||'Google 用户'} · 自动同步已开启`}
+function updateFirebaseStatus(){const el=document.getElementById('firebaseStatus');if(el)el.textContent=firebaseStatusText()}
+function firebaseProgress(show,title,percent,detail){const box=document.getElementById('firebaseProgress');if(!box)return;box.classList.toggle('show',!!show);const t=document.getElementById('firebaseProgressTitle'),p=document.getElementById('firebaseProgressPercent'),d=document.getElementById('firebaseProgressDetail'),b=document.getElementById('firebaseProgressBar');if(t)t.textContent=title;if(d)d.textContent=detail;const n=Math.max(0,Math.min(100,Number(percent)||0));if(p)p.textContent=Math.round(n)+'%';if(b)b.style.width=n+'%'}
+function firebaseDataSnapshot(){const x=clone(db);x.tasks.forEach(t=>(t.history||[]).forEach(h=>{delete h.photos;delete h.beforePhotos;delete h.afterPhotos}));(x.archivedHistory||[]).forEach(h=>{delete h.photos;delete h.beforePhotos;delete h.afterPhotos});return x}
+function firebaseDocRef(){return firebaseUser?window.HM_FIREBASE.doc(window.HM_FIREBASE.firestore,'users',firebaseUser.uid,'appData','main'):null}
+async function firebaseLogin(){if(!window.HM_FIREBASE){toast('Firebase 尚未初始化');return}try{firebaseBusy=true;firebaseProgress(true,'Firebase 登录',10,'正在打开 Google 登录窗口…');await window.HM_FIREBASE.signInWithPopup(window.HM_FIREBASE.auth,window.HM_FIREBASE.provider)}catch(e){console.error(e);toast('Firebase 登录失败，请检查 Google 登录配置')}finally{firebaseBusy=false;setTimeout(()=>firebaseProgress(false,'Firebase 同步',0,''),700)}}
+async function firebaseLogout(){if(!window.HM_FIREBASE)return;try{if(firebaseUnsubscribe){firebaseUnsubscribe();firebaseUnsubscribe=null}await window.HM_FIREBASE.signOut(window.HM_FIREBASE.auth);toast('Firebase 已退出登录')}catch(e){console.error(e);toast('退出 Firebase 失败')}}
+async function firebaseUploadPhoto(dataUrl,hid,kind,index){if(!firebaseUser||!dataUrl?.startsWith('data:'))return null;const m=dataUrl.match(/^data:([^;]+);base64,(.+)$/);if(!m)return null;const bytes=Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),blob=new Blob([bytes],{type:m[1]||'image/jpeg'}),path=`users/${firebaseUser.uid}/photos/${hid}/${kind}-${index}.jpg`,r=window.HM_FIREBASE.ref(window.HM_FIREBASE.storage,path);await window.HM_FIREBASE.uploadBytes(r,blob,{contentType:'image/jpeg'});return await window.HM_FIREBASE.getDownloadURL(r)}
+async function firebaseUploadAllPhotos(){const hs=[];db.tasks.forEach(t=>(t.history||[]).forEach(h=>hs.push(h)));(db.archivedHistory||[]).forEach(h=>hs.push(h));const total=hs.reduce((n,h)=>n+(h.beforePhotos?.length||0)+(h.afterPhotos?.length||0),0);let done=0;firebaseProgress(true,'Firebase 同步',20,`正在同步照片（0/${total}）`);for(const h of hs)for(const kind of ['before','after']){const arr=Array.isArray(h[kind+'Photos'])?h[kind+'Photos']:[];for(let i=0;i<arr.length;i++){if(arr[i]?.data?.startsWith('data:')){try{arr[i].firebaseUrl=await firebaseUploadPhoto(arr[i].data,h.id,kind,i)}catch(e){console.warn('photo upload failed',e)}}done++;firebaseProgress(true,'Firebase 同步',20+Math.round(done/Math.max(1,total)*35),`正在同步照片（${done}/${total}）`)}}}
+async function firebaseUploadNow(){if(!firebaseUser){toast('请先登录 Firebase');return}if(firebaseBusy)return;firebaseBusy=true;suppressFirebaseSync=true;try{firebaseProgress(true,'Firebase 同步',5,'准备同步数据…');await firebaseUploadAllPhotos();firebaseProgress(true,'Firebase 同步',65,'正在上传任务、历史和设置…');await window.HM_FIREBASE.setDoc(firebaseDocRef(),{schema:'house-maintenance-firebase-v1',version:APP_VERSION,updatedAt:new Date().toISOString(),data:firebaseDataSnapshot()},{merge:true});localStorage.setItem('houseMaintenanceFirebaseSync_v1',new Date().toISOString());firebaseProgress(true,'Firebase 同步',100,'同步完成');toast('Firebase 已同步')}catch(e){console.error(e);toast('Firebase 同步失败，请检查网络和登录状态')}finally{suppressFirebaseSync=false;firebaseBusy=false;setTimeout(()=>firebaseProgress(false,'Firebase 同步',0,''),900)}}
+function scheduleFirebaseSync(){if(suppressFirebaseSync||!firebaseUser)return;clearTimeout(firebaseSyncTimer);firebaseSyncTimer=setTimeout(()=>firebaseUploadNow(),1200)}
+async function firebaseRestoreRemote(){if(!firebaseUser)return;const snap=await window.HM_FIREBASE.getDoc(firebaseDocRef());if(!snap.exists())return;const remote=snap.data()?.data;if(!remote)return;const localHas=(db.tasks||[]).length>0||(db.archivedHistory||[]).length>0,remoteHas=(remote.tasks||[]).length>0||(remote.archivedHistory||[]).length>0;if(localHas||!remoteHas)return;suppressFirebaseSync=true;try{db=normalize(remote);save();await persistAllInlinePhotos(db);await hydrateAllPhotos();localStorage.setItem('houseMaintenanceFirebaseSync_v1',new Date().toISOString());toast('已从 Firebase 恢复数据')}finally{suppressFirebaseSync=false}}
+function firebaseListen(){if(!firebaseUser)return;if(firebaseUnsubscribe)firebaseUnsubscribe();firebaseUnsubscribe=window.HM_FIREBASE.onSnapshot(firebaseDocRef(),async snap=>{if(!snap.exists()||suppressFirebaseSync)return;const remote=snap.data()?.data;if(!remote)return;const localTs=localStorage.getItem('houseMaintenanceFirebaseSync_v1')||'';const remoteTs=snap.data()?.updatedAt||'';if(localTs&&remoteTs&&remoteTs<=localTs)return;try{suppressFirebaseSync=true;db=normalize(remote);save();await persistAllInlinePhotos(db);await hydrateAllPhotos();localStorage.setItem('houseMaintenanceFirebaseSync_v1',new Date().toISOString());render()}catch(e){console.error(e);toast('Firebase 数据恢复失败')}finally{suppressFirebaseSync=false}},e=>{console.error(e);toast('Firebase 实时同步连接失败')})}
+function initFirebase(){if(!window.HM_FIREBASE)return;firebaseReady=true;window.HM_FIREBASE.onAuthStateChanged(window.HM_FIREBASE.auth,async user=>{firebaseUser=user||null;updateFirebaseStatus();if(firebaseUser){firebaseProgress(true,'Firebase 同步',5,'正在检查云端数据…');try{await firebaseRestoreRemote();firebaseListen();firebaseProgress(true,'Firebase 同步',100,'已连接，自动同步已开启')}catch(e){console.error(e);toast('Firebase 初始化同步失败')}setTimeout(()=>firebaseProgress(false,'Firebase 同步',0,''),900)}else{if(firebaseUnsubscribe){firebaseUnsubscribe();firebaseUnsubscribe=null}firebaseProgress(false,'Firebase 同步',0,'')}render()})}
+window.addEventListener('hm-firebase-ready',initFirebase);
+
 const TYPES_DEFAULT=[
  {id:'daily',label:'日常'},
  {id:'maintenance',label:'维护'},
@@ -377,6 +415,7 @@ function stripPhotosForLocalStorage(x){
 function save(){
  try{localStorage.setItem(KEY,JSON.stringify(stripPhotosForLocalStorage(db)));
   if(!suppressDriveAutoSync) scheduleDriveAutoSync();
+  if(!suppressFirebaseSync) scheduleFirebaseSync();
   return true
  }catch(e){toast('数据保存失败：浏览器本地存储空间不足，请先导出备份');return false}
 }
@@ -723,6 +762,11 @@ function renderSettings(c){
  <div class="section"><div class="section-title"><h2>任务类型</h2><button type="button" class="btn primary small" data-settings="type-add">＋ 新增类型</button></div><div class="task-list">${db.settings.types.map(x=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(x.label)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="type-edit" data-id="${x.id}">编辑</button><button type="button" class="btn danger small" data-settings="type-delete" data-id="${x.id}">删除</button></div></div></div>`).join('')}</div></div>
  <div class="section"><div class="section-title"><h2>区域</h2><button type="button" class="btn primary small" data-settings="area-add">＋ 新增区域</button></div><div class="task-list">${db.settings.areas.map(a=>`<div class="task"><div class="task-main"><div><div class="task-name">${esc(a.label)}</div></div><div class="actions"><button type="button" class="btn small" data-settings="area-edit" data-id="${a.id}">编辑区域</button><button type="button" class="btn danger small" data-settings="area-delete" data-id="${a.id}">删除区域</button></div></div><div class="actions"><button type="button" class="btn small" data-settings="sub-add" data-area="${a.id}">＋ 新增子区域</button></div>${(a.subs||[]).map(s=>`<div class="sub-row"><span>${esc(s.label)}</span><span class="actions" style="margin:0"><button type="button" class="btn small" data-settings="sub-edit" data-area="${a.id}" data-id="${s.id}">编辑</button><button type="button" class="btn danger small" data-settings="sub-delete" data-area="${a.id}" data-id="${s.id}">删除</button></span></div>`).join('')}</div>`).join('')}</div></div>
  <div class="section"><h2>每日开始时间</h2><div class="notice">当前设置：每天 ${DAY_START_HOUR}:00 开始新的一天。该设置用于判断每日/周期任务属于哪一天；例如凌晨 5–6 点完成任务，仍计入前一天。</div></div>
+ <div class="section"><h2>☁️ Firebase 多设备同步</h2>
+ <div id="firebaseStatus" class="notice">正在初始化 Firebase…</div>
+ <div class="actions"><button type="button" class="btn primary" data-firebase="login">Google 登录</button><button type="button" class="btn" data-firebase="logout">退出登录</button><button type="button" class="btn primary" data-firebase="sync">立即同步</button></div>
+ <div id="firebaseProgress" class="drive-progress" aria-live="polite"><div class="drive-progress-head"><span id="firebaseProgressTitle">Firebase 同步</span><span id="firebaseProgressPercent">0%</span></div><div id="firebaseProgressDetail" class="drive-progress-detail">准备中…</div><div class="drive-progress-track"><div id="firebaseProgressBar" class="drive-progress-bar"></div></div></div>
+ <div class="notice" style="margin-top:10px">Firebase 作为主要多设备同步；Google Drive 保留作为备份。任务、历史、设置自动同步，Before / After 照片上传到 Firebase Storage。</div></div>
  <div class="section"><h2>Google Drive 云同步</h2><div id="driveStatus" class="notice">${esc(driveStatusText())}</div><div class="actions"><button type="button" class="btn primary" data-drive="connect">连接 Google Drive</button><button type="button" class="btn" data-drive="disconnect">断开</button></div><div class="actions" style="margin-top:10px"><button type="button" class="btn primary" data-drive="sync">☁️ 上传/同步</button><button type="button" class="btn" data-drive="restore">⬇️ 从云端恢复</button></div><label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="driveAuto" type="checkbox" ${driveMeta().auto!==false?'checked':''} data-drive-auto style="width:18px;height:18px"> 数据修改后自动同步</label><div class="notice" style="margin-top:10px">云端文件：${DRIVE_FILE_NAME}<br>使用 ${DRIVE_SCOPE}，只访问此应用创建/使用的 Drive 文件。首次连接请在 Google 授权窗口中允许访问。</div></div><div id="driveProgress" class="drive-progress" aria-live="polite">
   <div class="drive-progress-head"><span id="driveProgressTitle">Google Drive 同步</span><span id="driveProgressPercent">0%</span></div>
   <div id="driveProgressDetail" class="drive-progress-detail">准备中…</div>
@@ -732,6 +776,7 @@ function renderSettings(c){
  <div class="section"><h2>版本信息</h2><div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:12px"><span>房屋维护管理 · PWA</span><strong>${APP_VERSION}</strong></div></div>
  </div>`
  updateDriveStatus();
+ updateFirebaseStatus();
 }
 function taskEditor(id){
  const t=id?db.tasks.find(x=>x.id===id):null;
@@ -980,6 +1025,7 @@ document.addEventListener('click',function(e){
   else if(a==='sub-add')subEditor(area);else if(a==='sub-edit')subEditor(area,id);else if(a==='sub-delete')subDelete(area,id);else if(a==='sub-save')subSave();else if(a==='sub-delete-confirm')subDeleteConfirm(area,id);
   return
  }
+ const fb=e.target.closest('[data-firebase]');if(fb){const a=fb.dataset.firebase;if(a==='login')firebaseLogin();else if(a==='logout')firebaseLogout();else if(a==='sync')firebaseUploadNow();return}
  const d=e.target.closest('[data-drive]');
  if(d){const a=d.dataset.drive;if(a==='connect')connectDrive();else if(a==='disconnect')disconnectDrive();else if(a==='sync')uploadDrivePayload('manual');else if(a==='restore'){if(confirm('从云端恢复会覆盖当前本机任务、历史、分类和设置，确定继续吗？'))restoreFromDrive();}return}
  const da=e.target.closest('[data-drive-auto]');
@@ -1043,6 +1089,7 @@ document.addEventListener('change',e=>{
 });
 render();
 hydrateAllPhotos();
+if(window.HM_FIREBASE && !firebaseReady) initFirebase();
 </script>
 
 <script>
