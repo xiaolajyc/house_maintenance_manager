@@ -1,9 +1,10 @@
-# 房屋维护管理 PWA v28
+# 房屋维护管理 PWA V44
 
-修复完成日期问题：
-- 打开“完成任务”窗口时，默认日期始终取当前真实日历日期
-- 不再使用 10:00 维护日的 today() 作为完成日期
-- 15 日凌晨完成 → 默认显示 15 日
-- 10:00 维护日逻辑仍保持不变，仅用于任务周期/逾期判断
-- 从 Checklist 确认页返回时仍会恢复原先填写的日期
-- 同日历史记录继续按完成时间从晚到早排序
+本版本基于 V43，修复 Firebase Google 登录在 iPhone/Safari 上使用 signInWithPopup 时可能出现 “The requested action is invalid.” 的问题。
+
+主要调整：
+- Firebase Google 登录改为 signInWithRedirect，避免移动端 popup/认证窗口兼容问题
+- 应用启动时处理 getRedirectResult
+- 登录错误显示具体 Firebase error code，便于继续排查
+- Service Worker cache 升级为 v44，避免旧版代码继续缓存
+- 其余任务、历史、照片、Firestore、Storage、Google Drive 功能保持不变
