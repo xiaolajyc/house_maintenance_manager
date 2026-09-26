@@ -1,14 +1,9 @@
-房屋维护管理 PWA · V51
+# 房屋维护管理 PWA v43
 
-Flat structure: all app files are in this directory; no src/dist/node_modules dependency.
-
-Files:
-- index.html
-- manifest.webmanifest
-- sw.js
-- icon-192.png
-- icon-512.png
-- app-logo.png
-- dragon-repair.png
-
-部署：将整个目录作为网站根目录部署，或将目录内全部文件上传到 GitHub Pages 的根目录。
+修复完成日期问题：
+- 打开“完成任务”窗口时，默认日期始终取当前真实日历日期
+- 不再使用 10:00 维护日的 today() 作为完成日期
+- 15 日凌晨完成 → 默认显示 15 日
+- 10:00 维护日逻辑仍保持不变，仅用于任务周期/逾期判断
+- 从 Checklist 确认页返回时仍会恢复原先填写的日期
+- 同日历史记录继续按完成时间从晚到早排序
