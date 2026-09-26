@@ -282,7 +282,7 @@ window.dispatchEvent(new CustomEvent('hm-firebase-ready'));
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V50';
+const APP_VERSION='V51';
 // V48 stability: avoid browser decode work for off-screen images.
 document.addEventListener('error',e=>{
   const el=e.target;
@@ -844,8 +844,9 @@ function renderHistory(c){
    if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
  });
  let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
- a=[...a].sort(historySort);const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">完成日期 / 时间</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,Math.min(window.historyLimit||80,a.length)).map(h=>`<tr><td><div>${esc(h.date)}</div>${formatCompletedAt(h)?`<div class="history-time">完成 ${esc(formatCompletedAt(h))}</div>`:'<div class="history-time muted">完成时间未记录</div>'}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${(Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))?`<div class="before-after-history"><div><strong>Before</strong>${photoHTML(h.beforePhotos||[],true,'before',h.id)}</div><div><strong>After</strong>${photoHTML(h.afterPhotos||h.photos||[],true,'after',h.id)}</div><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">前后对比</button></div>`:''}</td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>${a.length>80?`<div class="actions" style="justify-content:center"><button type="button" class="btn" data-cmd="history-load-more">加载更多（剩余 ${a.length-80} 条）</button></div>`:''}`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ a=[...a].sort(historySort);const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">完成日期 / 时间</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,Math.min(window.historyLimit||80,a.length)).map(h=>`<tr><td><div>${esc(h.date)}</div>${formatCompletedAt(h)?`<div class="history-time">完成 ${esc(formatCompletedAt(h))}</div>`:'<div class="history-time muted">完成时间未记录</div>'}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${((Array.isArray(h.beforePhotos)?h.beforePhotos.length:0)||(Array.isArray(h.afterPhotos)?h.afterPhotos.length:(Array.isArray(h.photos)?h.photos.length:0))||(photoHistoryMeta?.has(String(h.id))))?`<div class="before-after-history"><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 前后对比照片</button></div>`:''}</td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>${a.length>80?`<div class="actions" style="justify-content:center"><button type="button" class="btn" data-cmd="history-load-more">加载更多（剩余 ${a.length-80} 条）</button></div>`:''}`:'<div class="empty">暂无历史记录</div>'}</div></div>`
  setupLazyHistoryPhotos();
+ if(!photoHistoryMeta)loadPhotoHistoryMeta().then(()=>{if(page==='history')render()});
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -927,6 +928,25 @@ async function persistHistoryPhotos(h){
  const b=Array.isArray(h.beforePhotos)?h.beforePhotos:[],a=Array.isArray(h.afterPhotos)?h.afterPhotos:[];
  if(!b.length&&!a.length)return;
  await Promise.all([idbPutPhotos(h.id,'before',b),idbPutPhotos(h.id,'after',a)]);
+}
+let photoHistoryMeta=null;
+let photoHistoryMetaPromise=null;
+async function loadPhotoHistoryMeta(){
+ if(photoHistoryMeta)return photoHistoryMeta;
+ if(photoHistoryMetaPromise)return photoHistoryMetaPromise;
+ photoHistoryMetaPromise=(async()=>{
+  const map=new Map();
+  try{const dbi=await openPhotoDB();await new Promise((resolve,reject)=>{const tx=dbi.transaction('photos','readonly'),st=tx.objectStore('photos'),req=st.openCursor();req.onsuccess=()=>{const c=req.result;if(!c){resolve();return}const v=c.value||{},hid=String(v.historyId||'');if(hid){const x=map.get(hid)||{before:0,after:0};if(v.kind==='before')x.before++;else if(v.kind==='after')x.after++;map.set(hid,x)}c.continue()};req.onerror=()=>reject(req.error||new Error('photo index read failed'))})}catch(e){console.warn('photo metadata scan failed',e)}
+  photoHistoryMeta=map;return map;
+ })();
+ try{return await photoHistoryMetaPromise}finally{photoHistoryMetaPromise=null}
+}
+async function getHistoryPhotos(h){
+ if(!h)return {before:[],after:[]};
+ let before=Array.isArray(h.beforePhotos)?h.beforePhotos.slice():[];
+ let after=Array.isArray(h.afterPhotos)?h.afterPhotos.slice():(Array.isArray(h.photos)?h.photos.slice():[]);
+ if(!before.length||!after.length){try{const [b,a]=await Promise.all([!before.length?idbGetPhotos(h.id,'before'):Promise.resolve([]),!after.length?idbGetPhotos(h.id,'after'):Promise.resolve([])]);if(!before.length)before=b.map(x=>({data:x.data}));if(!after.length)after=a.map(x=>({data:x.data}))}catch(e){console.warn('history photo read failed',e)}}
+ return {before,after};
 }
 async function hydrateHistoryPhotos(h){
  // V47：绝不在启动时把云端照片下载成 base64。图片直接由 <img src=firebaseUrl> 按需加载。
@@ -1046,29 +1066,24 @@ async function saveComplete(id,force){
  window.pendingComplete=null;window.__completeSaving.delete(id);closeModal();render();toast('完成记录已保存')
  }catch(err){window.__completeSaving.delete(id);throw err}
 }
-function comparePhotosModal(h){
- const before=Array.isArray(h.beforePhotos)?h.beforePhotos:[],after=Array.isArray(h.afterPhotos)?h.afterPhotos:(Array.isArray(h.photos)?h.photos:[]);
- if(!before.length&&!after.length){modal('Before / After 对比','<div class="empty">这条历史记录没有照片。</div>');return}
+async function comparePhotosModal(h){
+ if(!h)return;
+ const loaded=await getHistoryPhotos(h),before=loaded.before,after=loaded.after;
+ if(!before.length&&!after.length){modal('前后对比照片','<div class="empty">这条历史记录没有照片。</div>');return}
  window.__compareHistory=h;
- const n=Math.max(before.length,after.length);
- const pair=[];for(let i=0;i<n;i++){
-  const bs=before[i]?.data||before[i]?.firebaseUrl||"",as=after[i]?.data||after[i]?.firebaseUrl||"";
-  pair.push(`<div class="compare-pair"><div><div class="compare-label">Before ${i+1}</div>${bs?`<img src="${bs}" data-cmd="compare-photo-view" data-src="${bs}" data-kind="Before" data-index="${i+1}">`:'<div class="compare-empty">无照片</div>'}</div><div><div class="compare-label">After ${i+1}</div>${as?`<img src="${as}" data-cmd="compare-photo-view" data-src="${as}" data-kind="After" data-index="${i+1}">`:'<div class="compare-empty">无照片</div>'}</div></div>`)
- }
- modal('Before / After 对比',`<div class="compare-toolbar"><button type="button" class="btn small" data-cmd="compare-back">← 返回</button><span class="meta">点击照片可放大查看</span></div><div class="compare-wrap">${pair.join('')}</div>`)
-}
-function comparePhotoViewer(src,label,index){
- if(!src)return;
- window.__compareViewer={src,label,index,scale:1};
- modal(label+` ${index}`,`<div class="photo-viewer"><div class="photo-viewer-toolbar"><button type="button" class="btn small" data-cmd="compare-viewer-back">← 返回前后对比</button><div class="photo-zoom-controls"><button type="button" class="btn small" data-cmd="photo-zoom-out">−</button><span id="photoZoomPercent">100%</span><button type="button" class="btn small" data-cmd="photo-zoom-in">＋</button><button type="button" class="btn small" data-cmd="photo-zoom-reset">重置</button></div></div><div class="photo-viewer-stage"><img id="compareViewerImage" src="${src}" alt="${label} ${index}"></div></div>`)
-}
-function updateCompareViewerScale(scale){
- const v=window.__compareViewer;if(!v)return;
- v.scale=Math.max(.5,Math.min(4,scale));
- const img=document.getElementById('compareViewerImage');if(img){img.style.transform=`scale(${v.scale})`;img.style.transformOrigin='center center'}
- const pct=document.getElementById('photoZoomPercent');if(pct)pct.textContent=Math.round(v.scale*100)+'%';
+ const n=Math.max(before.length,after.length),pair=[];
+ for(let i=0;i<n;i++){const bs=before[i]?.data||before[i]?.firebaseUrl||'',as=after[i]?.data||after[i]?.firebaseUrl||'';pair.push(`<div class="compare-pair"><div><div class="compare-label">Before ${i+1}</div>${bs?`<img src="${bs}" data-cmd="compare-photo-view" data-src="${bs}" data-kind="Before" data-index="${i+1}">`:'<div class="compare-empty">无照片</div>'}</div><div><div class="compare-label">After ${i+1}</div>${as?`<img src="${as}" data-cmd="compare-photo-view" data-src="${as}" data-kind="After" data-index="${i+1}">`:'<div class="compare-empty">无照片</div>'}</div></div>`)}
+ modal('前后对比照片',`<div class="compare-toolbar"><button type="button" class="btn small" data-cmd="compare-back">← 返回</button><span class="meta">点击照片可放大查看</span></div><div class="compare-wrap">${pair.join('')}</div>`);
 }
 
+let comparePinchState=null;
+function setupCompareViewerGestures(){
+ const stage=document.querySelector('.photo-viewer-stage');if(!stage)return;
+ let startDist=0,startScale=1;
+ stage.addEventListener('touchstart',e=>{if(e.touches.length===2){startDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);startScale=window.__compareViewer?.scale||1}},{passive:true});
+ stage.addEventListener('touchmove',e=>{if(e.touches.length===2&&startDist){e.preventDefault();const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);updateCompareViewerScale(startScale*d/startDist)}},{passive:false});
+ stage.addEventListener('touchend',()=>{startDist=0},{passive:true});
+}
 function findHistoryRecord(taskId,historyId,archived){
  if(archived)return (db.archivedHistory||[]).find(x=>x.id===historyId)||null;
  const t=db.tasks.find(x=>x.id===taskId);return t?(t.history||[]).find(x=>x.id===historyId)||null:null;
@@ -1236,7 +1251,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// V50：前后对比照片查看器支持触控双指缩放、滚轮缩放；返回按钮回到前后对比层。
+// V51：前后对比照片查看器支持触控双指缩放、滚轮缩放；返回按钮回到前后对比层。
 (function(){
  let pinchStart=0,pinchScale=1;
  document.addEventListener('wheel',e=>{const stage=e.target.closest?.('.photo-viewer-stage');if(!stage)return;e.preventDefault();updateCompareViewerScale((window.__compareViewer?.scale||1)+(e.deltaY<0?.1:-.1))},{passive:false});
