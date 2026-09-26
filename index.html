@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>房屋维护管理 V45</title>
+<title>房屋维护管理 V46</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}html{touch-action:pan-y}body{touch-action:pan-y;margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -75,7 +75,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 
 .photo-pick{position:relative;background:#fff;border:1px solid var(--line);color:var(--text)}
 .photo-section .meta{line-height:1.45}
-.photo-badge{display:inline-flex;align-items:center;gap:4px;margin:7px 0 0 0;padding:3px 7px;border-radius:999px;background:#eaf6ff;color:#2776a8;font-size:11px;font-weight:700}
+.photo-badge{display:inline-flex;align-items:center;gap:4px;margin:4px 0 0 0;padding:4px 9px;border-radius:999px;background:#e8f5ff;color:#0876c9;border:1px solid #b9def6;font-size:12px;font-weight:800;white-space:nowrap}.history-table td:nth-child(2) .photo-badge{flex:0 0 auto}
 .compare-wrap{padding-bottom:4px}
 @media(max-width:720px){
  .before-after-grid{display:grid!important;grid-template-columns:1fr!important;gap:12px!important}
@@ -262,7 +262,7 @@ footer{color:#8a9ba8;padding-top:16px}
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V45';
+const APP_VERSION='V46';
 const DRIVE_CLIENT_ID='801960562511-6ek5qhmjk5ubg1qo84g4r6sqhvv1u1pk.apps.googleusercontent.com';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME='house-maintenance-sync-v1.json';
@@ -788,8 +788,9 @@ let historyPhotoScanPromise=null;
 async function scanHistoryPhotoIds(){
  if(historyPhotoIdSet)return historyPhotoIdSet;
  if(historyPhotoScanPromise)return historyPhotoScanPromise;
- historyPhotoScanPromise=new Promise((resolve,reject)=>{
+ historyPhotoScanPromise=new Promise(async (resolve,reject)=>{
   try{
+   const dbi=await openPhotoDB();
    const tx=dbi.transaction('photos','readonly'),st=tx.objectStore('photos'),set=new Set(),req=st.openCursor();
    req.onsuccess=()=>{const c=req.result;if(!c){historyPhotoIdSet=set;resolve(set);return}const v=c.value;if(v&&v.historyId)set.add(String(v.historyId));c.continue()};
    req.onerror=()=>reject(req.error||new Error('photo index scan failed'));
