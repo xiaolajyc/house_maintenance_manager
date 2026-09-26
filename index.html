@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>房屋维护管理 V43</title>
+<title>房屋维护管理 V44</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#172033;--muted:#667085;--line:#e1e5ea;--primary:#2563eb;--danger:#dc2626;--warn:#d97706;--ok:#16a34a;--shadow:0 3px 14px rgba(15,23,42,.06)}
 *{box-sizing:border-box}html{touch-action:pan-y}body{touch-action:pan-y;margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Microsoft YaHei",sans-serif}
@@ -75,6 +75,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 
 .photo-pick{position:relative;background:#fff;border:1px solid var(--line);color:var(--text)}
 .photo-section .meta{line-height:1.45}
+.photo-badge{display:inline-flex;align-items:center;gap:4px;margin:7px 0 0 0;padding:3px 7px;border-radius:999px;background:#eaf6ff;color:#2776a8;font-size:11px;font-weight:700}
 .compare-wrap{padding-bottom:4px}
 @media(max-width:720px){
  .before-after-grid{display:grid!important;grid-template-columns:1fr!important;gap:12px!important}
@@ -261,7 +262,7 @@ footer{color:#8a9ba8;padding-top:16px}
 <script>
 const KEY='houseMaintenanceManager_v4_clean';
 const DAY_START_HOUR=10;
-const APP_VERSION='V43';
+const APP_VERSION='V44';
 const DRIVE_CLIENT_ID='801960562511-6ek5qhmjk5ubg1qo84g4r6sqhvv1u1pk.apps.googleusercontent.com';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME='house-maintenance-sync-v1.json';
@@ -716,7 +717,8 @@ function renderHistory(c){
    if(h.task && !taskOptions.some(x=>x.label===h.task))taskOptions.push({value:'archived:'+h.task,label:h.task+'（已删除）'});
  });
  let a=selected==='all'?all:all.filter(h=>selected.startsWith('archived:')?(h.archived&&h.task===selected.slice(9)):h.taskId===selected);
- a=[...a].sort(historySort);const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">完成日期 / 时间</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td><div>${esc(h.date)}</div>${formatCompletedAt(h)?`<div class="history-time">完成 ${esc(formatCompletedAt(h))}</div>`:'<div class="history-time muted">完成时间未记录</div>'}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}<div class="history-photo-actions"><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 查看前后照片</button></div></td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ a=[...a].sort(historySort);const years=[...new Set(a.map(x=>String(x.date||'').slice(0,4)).filter(Boolean))].sort((x,y)=>y.localeCompare(x)),yearStats=years.map(y=>({year:y,total:a.filter(x=>String(x.date||'').startsWith(y)).reduce((s,x)=>s+Number(x.cost||0),0),count:a.filter(x=>String(x.date||'').startsWith(y)).length}));c.innerHTML=`<div class="panel"><h2>📊 完成历史</h2><div class="expense-stats">${yearStats.length?yearStats.map(x=>`<div class="expense-stat"><span class="meta">${x.year} 年</span><b>$${x.total.toFixed(2)}</b><div class="meta">${x.count} 次</div></div>`).join(''):'<div class="expense-stat"><span class="meta">暂无花费记录</span><b>$0.00</b></div>'}</div><div class="toolbar"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">选择任务<select data-role="history-task" style="border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--text);min-width:min(360px,100%)"><option value="all" ${selected==='all'?'selected':''}>全部任务</option>${taskOptions.map(x=>`<option value="${esc(x.value)}" ${selected===x.value?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label></div><div class="history-wrap">${a.length?`<table class="history-table"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">完成日期 / 时间</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">任务</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">状态</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">花费</th><th class="history-note">备注</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">操作</th></tr></thead><tbody>${a.slice(0,300).map(h=>`<tr><td><div>${esc(h.date)}</div>${formatCompletedAt(h)?`<div class="history-time">完成 ${esc(formatCompletedAt(h))}</div>`:'<div class="history-time muted">完成时间未记录</div>'}</td><td>${esc(h.task)}${h.archived?' <span class="badge gray">已删除任务</span>':''}</td><td>${esc(h.condition||'Normal')}</td><td>$${Number(h.cost||0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid var(--line)"><div class="history-note">${esc(h.notes||'')}</div>${checklistSummary(h)}${hasHistoryPhotos(h)?'<span class="photo-badge" title="此记录有照片">📷 有照片</span>':''}<div class="history-photo-actions"><button type="button" class="btn small" data-cmd="photo-compare" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 查看前后照片</button></div></td><td><div class="actions"><button type="button" class="btn small" data-cmd="history-photo-edit" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">📷 照片</button><button type="button" class="btn danger small" data-cmd="history-delete" data-task="${esc(h.taskId||'')}" data-history="${esc(h.id)}" data-archived="${h.archived?'1':'0'}">删除</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">暂无历史记录</div>'}</div></div>`
+ if(page==='history'&&!historyPhotoIdSet){scanHistoryPhotoIds().then(()=>{if(page==='history')render()}).catch(()=>{})}
 }
 function renderSettings(c){
  c.innerHTML=`<div class="panel"><h2>⚙️ 设置与分类管理</h2>
@@ -764,6 +766,7 @@ function openPhotoDB(){
 }
 function photoKey(historyId,kind,index){return `${historyId}::${kind}::${index}`}
 async function idbPutPhotos(historyId,kind,photos){
+ historyPhotoIdSet=null;
  const dbi=await openPhotoDB();
  return new Promise((resolve,reject)=>{
   const tx=dbi.transaction('photos','readwrite'),st=tx.objectStore('photos');
@@ -780,7 +783,23 @@ async function idbGetPhotos(historyId,kind){
   req.onerror=()=>reject(req.error||new Error('photo read failed'));
  })
 }
+let historyPhotoIdSet=null;
+let historyPhotoScanPromise=null;
+async function scanHistoryPhotoIds(){
+ if(historyPhotoIdSet)return historyPhotoIdSet;
+ if(historyPhotoScanPromise)return historyPhotoScanPromise;
+ historyPhotoScanPromise=new Promise((resolve,reject)=>{
+  try{
+   const tx=dbi.transaction('photos','readonly'),st=tx.objectStore('photos'),set=new Set(),req=st.openCursor();
+   req.onsuccess=()=>{const c=req.result;if(!c){historyPhotoIdSet=set;resolve(set);return}const v=c.value;if(v&&v.historyId)set.add(String(v.historyId));c.continue()};
+   req.onerror=()=>reject(req.error||new Error('photo index scan failed'));
+  }catch(e){reject(e)}
+ }).finally(()=>{historyPhotoScanPromise=null});
+ return historyPhotoScanPromise;
+}
+function hasHistoryPhotos(h){return !!(h&&(Number(h.photoCount)>0||(Array.isArray(h.beforePhotos)&&h.beforePhotos.length)||(Array.isArray(h.afterPhotos)&&h.afterPhotos.length)||(Array.isArray(h.photos)&&h.photos.length)||(historyPhotoIdSet&&historyPhotoIdSet.has(String(h.id)))))}
 async function idbDeleteHistoryPhotos(historyId){
+ historyPhotoIdSet=null;
  const dbi=await openPhotoDB();
  return new Promise((resolve,reject)=>{
   const tx=dbi.transaction('photos','readwrite'),st=tx.objectStore('photos'),req=st.openCursor();
@@ -877,7 +896,7 @@ async function saveComplete(id,force){
  const currentCalendarDate=iso(calendarToday());
  const scheduleBase=(t.unit==='day'||t.unit==='nightly')&&selectedDate===currentCalendarDate?today():parseISO(selectedDate);
  t.nextDue=iso(addPeriod(scheduleBase,t.unit==='nightly'?1:t.interval,t.unit==='nightly'?'day':t.unit));
- t.history.unshift({id:uid('hist'),date:state.date||iso(calendarToday()),completedAt:new Date().toISOString(),condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,checklistResults:state.checklist});
+ t.history.unshift({id:uid('hist'),date:state.date||iso(calendarToday()),completedAt:new Date().toISOString(),condition:state.condition,cost:state.cost,notes:state.notes,temperature:state.temperature,beforePhotos:state.beforePhotos,afterPhotos:state.afterPhotos,photoCount:(state.beforePhotos||[]).length+(state.afterPhotos||[]).length,checklistResults:state.checklist});
  if(!save()){db=snapshot;window.__completeSaving.delete(id);return}
  const savedHistory=t.history[0];
  try{await persistHistoryPhotos(savedHistory)}
@@ -913,7 +932,7 @@ async function saveHistoryPhotos(){
  if((window.historyPhotoProcessing||0)>0){toast('照片仍在处理中，请稍候');return}
  const h=findHistoryRecord(s.taskId,s.historyId,s.archived);if(!h)return;
  const snapshot=clone(db);
- h.beforePhotos=clone(s.beforePhotos||[]);h.afterPhotos=clone(s.afterPhotos||[]);delete h.photos;
+ h.beforePhotos=clone(s.beforePhotos||[]);h.afterPhotos=clone(s.afterPhotos||[]);h.photoCount=h.beforePhotos.length+h.afterPhotos.length;delete h.photos;
  if(!save()){db=snapshot;return}
  try{await idbDeleteHistoryPhotos(h.id);await persistHistoryPhotos(h);window.pendingHistoryPhoto=null;closeModal();render();toast('历史照片已更新')}
  catch(e){db=snapshot;save();toast('照片保存失败，未完成更新')}
